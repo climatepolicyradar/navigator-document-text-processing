@@ -4,13 +4,37 @@ from pathlib import Path
 from typing import List, Optional, Sequence, Set, Tuple, Union
 
 import numpy as np
-from cpr_sdk.parser_models import ParserOutput, TextBlock
+from cpr_sdk.parser_models import ParserOutput, TextBlock, BlockType
 
 from src import config
 from src.encoders import BaseEncoder
 from src.s3 import get_s3_keys_with_prefix, s3_object_read_text
 
 logger = logging.getLogger(__name__)
+
+
+def filter_and_warn_for_unknown_types(types: list[str]) -> list[str]:
+    """
+    Filter out unknown types from a list of types.
+
+    If the type is unknown, log a warning and remove it from the list.
+    """
+
+    types_to_remove: list[str] = []
+
+    for _type in set(types):
+        try:
+            BlockType(_type)
+        except NameError:
+            logger.warning(
+                f"Blocks to filter should be of a known block type, removing {_type} "
+                f"from the list. "
+            )
+            types_to_remove.append(_type)
+
+    types = [t for t in types if t not in types_to_remove]
+
+    return types
 
 
 def replace_text_blocks(block: ParserOutput, new_text_blocks: Sequence[TextBlock]):

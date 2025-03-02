@@ -11,32 +11,9 @@ import re
 from cpr_sdk.parser_models import BlockType
 
 from src.models import Chunk, PipelineComponent
+from src.utils import filter_and_warn_for_unknown_types
 
 logger = getLogger(__name__)
-
-
-def filter_and_warn_for_unknown_types(types: list[str]) -> list[str]:
-    """
-    Filter out unknown types from a list of types.
-
-    If the type is unknown, log a warning and remove it from the list.
-    """
-
-    types_to_remove: list[str] = []
-
-    for _type in set(types):
-        try:
-            BlockType(_type)
-        except NameError:
-            logger.warning(
-                f"Blocks to filter should be of a known block type, removing {_type} "
-                f"from the list. "
-            )
-            types_to_remove.append(_type)
-
-    types = [t for t in types if t not in types_to_remove]
-
-    return types
 
 
 class IdentityChunkProcessor(PipelineComponent):
@@ -298,22 +275,27 @@ class CombineTextChunksIntoList(PipelineComponent):
     """
     Combines consecutive text chunks that match a list item pattern into list chunks.
 
+    Also incorporates preceding chunks that end with a colon as part of the list,
+    since these often introduce the list.
+
     If used in a pipeline with `CombineSuccessiveSameTypeChunks` on type TEXT, this
     should go before that.
 
-    TODO: handle cases where a list item is split across multiple text blocks
+    TODO: this will join multiple consecutive lists with introductions ending in colons.
     """
 
     def __init__(self, text_separator: str = "\n") -> None:
         self.text_separator = text_separator
         self.list_item_pattern = (
-            r"(^|\n)(?:•|-|(?:[\(|\[]?[0-9a-zA-Z]{0,3}[\.|\)|\]])).*?"
+            r"(^|\n)(?:•|-|·|(?:[\(|\[]?[0-9a-zA-Z]{0,3}[\.|\)|\]])).*?"
         )
 
     def __call__(self, chunks: list[Chunk]) -> list[Chunk]:
         """Run list item combining."""
         new_chunks: list[Chunk] = []
         current_list_chunk = None
+        potential_list_continuation = False
+        potential_list_intro = None
 
         for chunk in chunks:
             # Skip if not a text chunk
@@ -321,29 +303,216 @@ class CombineTextChunksIntoList(PipelineComponent):
                 if current_list_chunk:
                     new_chunks.append(current_list_chunk)
                     current_list_chunk = None
+                if potential_list_intro:
+                    new_chunks.append(potential_list_intro)
+                    potential_list_intro = None
+                potential_list_continuation = False
                 new_chunks.append(chunk)
                 continue
 
             # If there is any list item within the chunk, treat it all as a list
-            elif re.findall(self.list_item_pattern, chunk.text):
-                if current_list_chunk:
+            if re.findall(self.list_item_pattern, chunk.text):
+                if potential_list_intro:
+                    # Create a new list chunk incorporating the introduction
+                    if not current_list_chunk:
+                        current_list_chunk = potential_list_intro.model_copy(
+                            update={"chunk_type": BlockType.LIST}
+                        ).merge([chunk], text_separator=self.text_separator)
+                    else:
+                        # If we already have a list in progress and find a new introduction,
+                        # finish the current list and start a new one
+                        new_chunks.append(current_list_chunk)
+                        current_list_chunk = potential_list_intro.model_copy(
+                            update={"chunk_type": BlockType.LIST}
+                        ).merge([chunk], text_separator=self.text_separator)
+                    potential_list_intro = None
+                elif current_list_chunk:
                     # Merge with existing list chunk
                     current_list_chunk = current_list_chunk.merge(
                         [chunk], text_separator=self.text_separator
                     )
                 else:
                     # Create new list chunk
-                    current_list_chunk = chunk.model_copy()
-                    current_list_chunk.chunk_type = BlockType.LIST
-            else:
-                # Not a list item, add previous list chunk if exists
+                    current_list_chunk = chunk.model_copy(
+                        update={"chunk_type": BlockType.LIST}
+                    )
+                potential_list_continuation = True
+            # Check if this might be a continuation of a list item (doesn't look like
+            # a complete sentence)
+            elif (
+                potential_list_continuation
+                and current_list_chunk
+                and (
+                    (
+                        chunk.text[0].islower()
+                        if chunk.text and chunk.text.strip()
+                        else False
+                    )
+                    or not chunk.text.strip().endswith((".", "!", "?"))
+                )
+            ):
+                current_list_chunk = current_list_chunk.merge(
+                    [chunk], text_separator=" "
+                )
+            # Check if this chunk ends with a colon - potential list introduction
+            elif chunk.text.strip().endswith(":"):
                 if current_list_chunk:
                     new_chunks.append(current_list_chunk)
                     current_list_chunk = None
+                potential_list_intro = chunk
+                potential_list_continuation = False
+            else:
+                if current_list_chunk:
+                    new_chunks.append(current_list_chunk)
+                    current_list_chunk = None
+                if potential_list_intro:
+                    new_chunks.append(potential_list_intro)
+                    potential_list_intro = None
+                potential_list_continuation = False
                 new_chunks.append(chunk)
 
-        # Add final list chunk if exists
         if current_list_chunk:
             new_chunks.append(current_list_chunk)
+        elif potential_list_intro:
+            new_chunks.append(potential_list_intro)
 
         return new_chunks
+
+
+class SplitTextIntoSentences(PipelineComponent):
+    """
+    Split chunks of type TEXT in to sentences.
+
+    Handles sentences which go across chunks.
+    """
+
+    def __init__(self) -> None:
+        # Common abbreviations that shouldn't cause sentence splits
+        self.common_abbreviations = [
+            r"et al\.",
+            r"etc\.",
+            r"i\.e\.",
+            r"e\.g\.",
+            r"vs\.",
+            r"Mr\.",
+            r"Mrs\.",
+            r"Dr\.",
+            r"Prof\.",
+            r"Inc\.",
+            r"Ltd\.",
+            r"Co\.",
+            r"Jr\.",
+            r"Sr\.",
+            r"St\.",
+            r"Ave\.",
+            r"Blvd\.",
+            r"Rd\.",
+            r"Ph\.D\.",
+            r"M\.D\.",
+        ]
+
+        # First pattern matches only complete sentences
+        self.complete_sentence_pattern = re.compile(
+            r"[^.!?…]+[.!?…]+(?=\s|\Z)", re.MULTILINE
+        )
+        # Second pattern matches any remaining text
+        self.remaining_text_pattern = re.compile(r"[^.!?…]+", re.MULTILINE)
+
+    def __call__(self, chunks: Sequence[Chunk]) -> list[Chunk]:
+        """Run sentence splitting."""
+        new_chunks: list[Chunk] = []
+        incomplete_chunk = None
+
+        for chunk in chunks:
+            if chunk.chunk_type != BlockType.TEXT:
+                if incomplete_chunk:
+                    # Add any incomplete sentence before non-text chunk
+                    new_chunks.append(incomplete_chunk)
+                    incomplete_chunk = None
+                new_chunks.append(chunk)
+                continue
+
+            if incomplete_chunk:
+                text = f"{incomplete_chunk.text} {chunk.text}".strip()
+                current_chunk = incomplete_chunk.merge([chunk], text_separator=" ")
+                current_chunk.text = text
+            else:
+                text = chunk.text
+                current_chunk = chunk
+
+            # Process text for complete sentences
+            complete_sentences = self._extract_complete_sentences(text)
+
+            # Get the remaining text after removing complete sentences
+            remaining_text = text
+            for sentence in complete_sentences:
+                sentence_start = remaining_text.find(sentence)
+                sentence_end = sentence_start + len(sentence)
+                remaining_text = (
+                    remaining_text[:sentence_start] + remaining_text[sentence_end:]
+                ).strip()
+
+            # Add complete sentences as new chunks
+            for sentence in complete_sentences:
+                new_chunk = current_chunk.model_copy(update={"text": sentence})
+                new_chunks.append(new_chunk)
+
+            # Keep track of any remaining incomplete sentence
+            if remaining_text:
+                incomplete_chunk = current_chunk.model_copy(
+                    update={"text": remaining_text}
+                )
+            else:
+                incomplete_chunk = None
+
+        # Handle any remaining incomplete sentence at the end
+        if incomplete_chunk:
+            new_chunks.append(incomplete_chunk)
+
+        return new_chunks
+
+    def _extract_complete_sentences(self, text: str) -> list[str]:
+        """
+        Extract complete sentences from text.
+
+        Handles abbreviations which end in full stops at the end of sentences, by
+        temporarily replacing them with placeholders whilst sentence boundaries are
+        being identified.
+        """
+
+        placeholder_map = {}
+        modified_text = text
+
+        for i, abbr in enumerate(self.common_abbreviations):
+            placeholder = f"__ABBR_{i}__"
+
+            # Create pattern that matches the abbreviation not followed by an uppercase letter
+            # (which would indicate a new sentence)
+            pattern = f"{abbr}(?![A-Z])"
+            matches = re.finditer(pattern, modified_text)
+            for match in reversed(
+                list(matches)
+            ):  # Process in reverse to maintain positions
+                span = match.span()
+                abbr_text = modified_text[span[0] : span[1]]
+                placeholder_map[placeholder] = abbr_text
+                modified_text = (
+                    modified_text[: span[0]] + placeholder + modified_text[span[1] :]
+                )
+
+        # Find sentences in the modified text
+        sentences = [
+            s.strip()
+            for s in self.complete_sentence_pattern.findall(modified_text)
+            if s.strip()
+        ]
+
+        # Replace placeholders back with original abbreviations
+        final_sentences = []
+        for sentence in sentences:
+            for placeholder, original in placeholder_map.items():
+                sentence = sentence.replace(placeholder, original)
+            sentence = sentence.replace("\n", " ")
+            final_sentences.append(sentence)
+
+        return final_sentences

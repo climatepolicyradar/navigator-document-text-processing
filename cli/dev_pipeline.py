@@ -22,12 +22,13 @@ def run_on_document(document_path: Path):
         components=[
             chunk_processors.RemoveShortTableCells(),
             chunk_processors.RemoveRepeatedAdjacentChunks(),
-            chunk_processors.AddHeadings(),
             chunk_processors.ChunkTypeFilter(types_to_remove=["pageNumber"]),
             chunk_processors.RemoveFalseCheckboxes(),
             chunk_processors.CombineTextChunksIntoList(),
-            chunkers.IdentityChunker(),
-            serializers.BasicSerializer(),
+            chunk_processors.SplitTextIntoSentences(),
+            chunkers.FixedLengthChunker(max_chunk_words=150),
+            chunk_processors.AddHeadings(),
+            serializers.VerboseHeadingAwareSerializer(),
         ]
     )
 

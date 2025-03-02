@@ -44,3 +44,18 @@ class HeadingAwareSerializer(PipelineComponent):
             )
 
         return chunks
+
+
+class VerboseHeadingAwareSerializer(HeadingAwareSerializer):
+    """
+    Like a heading-aware serializer, but provides a description of what the heading is.
+
+    Adapted from dsRAG, who call a version of this where LLMs create headings
+    'AutoContext'.
+    (https://github.com/D-Star-AI/dsRAG/tree/main?tab=readme-ov-file#autocontext-contextual-chunk-headers)
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            template="Section context: this excerpt is from the section titled '{heading}'. {text}"
+        )
