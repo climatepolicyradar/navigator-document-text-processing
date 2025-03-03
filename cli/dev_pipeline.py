@@ -2,8 +2,6 @@ import json
 from pathlib import Path
 from cpr_sdk.parser_models import ParserOutput
 import typer
-from rich.console import Console
-from rich.text import Text
 import numpy as np
 
 from src.pipeline import Pipeline
@@ -15,9 +13,9 @@ OUTPUT_DIR = Path(__file__).parent / "data/dev_pipeline_output"
 
 def run_on_document(document_path: Path):
     """
-    Print chunks produced by a pipeline run on a parser input JSON.
+    Run a development pipeline on a parser output JSON.
 
-    :param document_path: path to parserinput json.
+    Outputs a JSON file with chunks, and optionally a numpy file with embeddings.
     """
 
     if not OUTPUT_DIR.exists():
@@ -52,37 +50,6 @@ def run_on_document(document_path: Path):
     if embeddings is not None:
         embeddings_path = OUTPUT_DIR / f"{document_path.stem}.npy"
         np.save(embeddings_path, embeddings)
-
-    console = Console()
-    with console.pager(styles=True):
-        # Define styles for each block type
-
-        for chunk in chunks:
-            # Create main text content with style based on type
-            content = Text(chunk.text, style="white")
-            content.append("\n")  # Add spacing after content
-
-            # Create metadata footer
-            metadata = Text()
-            metadata.append("ID: ", style="dim")
-            metadata.append(chunk.id, style="cyan dim")
-            metadata.append(" | Type: ", style="dim")
-            metadata.append(chunk.chunk_type.value, style="magenta dim")
-            if chunk.pages:
-                metadata.append(" | Pages: ", style="dim")
-                metadata.append(str(chunk.pages), style="blue dim")
-            if chunk.heading:
-                metadata.append("\nHeading: ", style="dim")
-                metadata.append(
-                    chunk.heading.text[:50] + "..."
-                    if len(chunk.heading.text) > 50
-                    else chunk.heading.text,
-                    style="yellow dim",
-                )
-
-            # Print content and metadata with spacing
-            console.print(content + metadata)
-            console.print()  # Add blank line between chunks
 
 
 if __name__ == "__main__":
