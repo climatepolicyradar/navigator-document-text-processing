@@ -4,8 +4,8 @@ This repository contains a command-line interface (CLI) tool for converting JSON
 
 ## Requirements
 
-- Python >3.8
-- poetry package manager
+- Python: See `pyproject.toml`
+- Poetry package manager
 
 ## Usage
 
@@ -15,13 +15,13 @@ To run the CLI tool locally, use the following command:
 python main.py [OPTIONS] INPUT_DIR OUTPUT_DIR
 ```
 
-Alternatively build and use the image via Docker after creating an environment file and filling in the correct variables. 
+Alternatively build and use the image via Docker after creating an environment file and filling in the correct variables.
 ```bash
-cp .env.example .env 
+cp .env.example .env
 ```
 
 ```bash
-make build 
+make build
 make run_embeddings_generation
 ```
 
@@ -46,4 +46,3 @@ python main.py --s3 input output
 ```
 
 Make sure to replace `input` and `output` with the appropriate directories or S3 paths.
-
