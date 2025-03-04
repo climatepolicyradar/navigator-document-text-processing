@@ -4,7 +4,7 @@ import logging
 
 from pydantic import BaseModel
 
-from cpr_sdk.parser_models import BlockType
+from cpr_sdk.parser_models import BlockType, ParserOutput
 
 logger = logging.getLogger(__name__)
 
@@ -128,3 +128,9 @@ class PipelineComponent(ABC):
     def __call__(self, chunks: list[Chunk]) -> list[Chunk]:
         """Base class for any pipeline component."""
         raise NotImplementedError
+
+
+class ParserOutputWithChunks(ParserOutput):
+    """A parser output with chunks."""
+
+    chunks: list[Chunk]

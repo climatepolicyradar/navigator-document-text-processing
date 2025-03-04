@@ -46,16 +46,20 @@ class Pipeline:
 
         self.pipeline_return_type = list[str] if self.encoder is None else np.ndarray
 
-    def get_empty_response(self) -> list[Chunk] | np.ndarray:
+    def get_empty_response(self) -> tuple[list[Chunk], Optional[np.ndarray]]:
         """Return an empty list or array depending on the pipeline configuration."""
-        return [] if self.encoder is None else np.empty((0, self.encoder.dimension))
+        return (
+            ([], None)
+            if self.encoder is None
+            else ([], np.empty((0, self.encoder.dimension)))
+        )
 
     def __call__(
         self,
         document: ParserOutput,
         encoder_batch_size: Optional[int] = None,
         device: Optional[str] = None,
-    ) -> list[Chunk] | np.ndarray:
+    ) -> tuple[list[Chunk], Optional[np.ndarray]]:
         """Run the pipeline on a single document."""
 
         if self.encoder is not None and encoder_batch_size is None:
@@ -77,10 +81,10 @@ class Pipeline:
                 logger.warning(
                     "Not all chunks have been serialized. Returning 'NONE' in place of those that are empty."
                 )
-            return chunks
+            return chunks, None
         else:
             serialized_text = [chunk.serialized_text or "NONE" for chunk in chunks]
-            return self.encoder.encode_batch(
+            return chunks, self.encoder.encode_batch(
                 text_batch=serialized_text,
                 batch_size=encoder_batch_size,  # type: ignore
                 device=device,
