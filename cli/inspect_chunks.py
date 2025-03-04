@@ -20,6 +20,11 @@ from typing import Optional
 from rich.console import Console
 from rich.text import Text
 from rich.prompt import Prompt
+from rich.layout import Layout
+from rich.panel import Panel
+from rich import box
+
+from cpr_sdk.parser_models import BlockType
 
 from src.models import ParserOutputWithChunks
 from src.encoders import SBERTEncoder
@@ -92,6 +97,37 @@ def display_chunk(
     return content + metadata
 
 
+def extract_headings(data):
+    """Extract headings from chunks and return a structured view."""
+    heading_types = [
+        BlockType.SECTION_HEADING,
+        BlockType.TITLE,
+        BlockType.PAGE_HEADER,
+    ]
+
+    return [chunk for chunk in data.chunks if chunk.chunk_type in heading_types]
+
+
+def create_layout(main_content, headings_content):
+    """Create a split layout with headings sidebar and main content."""
+    layout = Layout()
+
+    # Split into two columns
+    layout.split_column(Layout(name="header", size=1), Layout(name="main", ratio=1))
+
+    # Split main area into sidebar and content
+    layout["main"].split_row(
+        Layout(name="sidebar", size=30), Layout(name="content", ratio=1)
+    )
+
+    # Add content to each section
+    layout["header"].update(Panel("Document Viewer", box=box.HEAVY_HEAD))
+    layout["sidebar"].update(Panel(headings_content, title="Headings", box=box.ROUNDED))
+    layout["content"].update(Panel(main_content, box=box.ROUNDED))
+
+    return layout
+
+
 @app.command()
 def view(file_path: Path, chunk_index: Optional[int] = None):
     """
@@ -101,18 +137,30 @@ def view(file_path: Path, chunk_index: Optional[int] = None):
     Otherwise, all chunks are displayed in a pager.
     """
     data, _ = load_data(file_path)
+    headings = extract_headings(data)
+
+    # Create headings sidebar content
+    headings_content = Text()
+    for i, heading in enumerate(headings):
+        headings_content.append(f"{i+1}. ", style="green")
+        headings_content.append(f"{heading.text}\n", style="yellow")
 
     if chunk_index is not None:
         if 0 <= chunk_index < len(data.chunks):
             content = display_chunk(data.chunks[chunk_index], chunk_index)
-            console.print(content)
-            console.print()  # Add blank line
+            layout = create_layout(content, headings_content)
+            console.print(layout)
         else:
             console.print(
                 f"[bold red]Error:[/] Chunk index {chunk_index} is out of range (0-{len(data.chunks)-1})."
             )
     else:
+        # Display all chunks with a single headings sidebar
         with console.pager(styles=True):
+            console.print(Panel(headings_content, title="Headings", title_align="left"))
+            console.print("\n")
+
+            # Display all chunks one after another
             for i, chunk in enumerate(data.chunks):
                 content = display_chunk(chunk, i)
                 console.print(content)
