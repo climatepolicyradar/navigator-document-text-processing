@@ -185,7 +185,7 @@ def interactive(file_path: Path):
     console.print("[dim]Type 'exit' or 'quit' to end the session[/dim]\n")
 
     while True:
-        query = Prompt.ask("[bold blue]Search query[/]")
+        query = Prompt.ask("[bold blue]Search query (or 'quit')[/]")
         if query.lower() in ("exit", "quit"):
             break
 
@@ -212,22 +212,13 @@ def interactive(file_path: Path):
             # Create a summarized view
             preview = chunk.text
             result = Text()
-            result.append(f"#{idx} ", style="green bold")
+            result.append(f"#{idx}, {chunk.chunk_type.value}", style="green bold")
             result.append(f"[Similarity: {similarity:.4f}] ", style="cyan")
             if chunk.heading:
                 result.append(f"[Heading: {chunk.heading.text}...] ", style="yellow")
             result.append(preview, style="white")
             console.print(result)
             console.print()
-
-        # Offer to show full text of a result
-        console.print(
-            "[dim]Enter a chunk number to view full text or press Enter to continue[/dim]"
-        )
-        choice = Prompt.ask("Chunk #", default="")
-        if choice.isdigit() and int(choice) in top_indices:
-            idx = int(choice)
-            console.print(display_chunk(data.chunks[idx], idx, similarities[idx]))
 
         console.print("\n" + "-" * 80 + "\n")
 
