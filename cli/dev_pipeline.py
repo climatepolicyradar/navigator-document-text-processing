@@ -4,6 +4,8 @@ from cpr_sdk.parser_models import ParserOutput
 import typer
 import numpy as np
 
+from cpr_sdk.parser_models import BlockType
+
 from src.pipeline import Pipeline
 from src.models import ParserOutputWithChunks
 from src import chunk_processors, chunkers, serializers, encoders
@@ -30,6 +32,10 @@ def run_on_document(document_path: Path):
             chunk_processors.ChunkTypeFilter(types_to_remove=["pageNumber"]),
             chunk_processors.RemoveFalseCheckboxes(),
             chunk_processors.CombineTextChunksIntoList(),
+            chunk_processors.CombineSuccessiveSameTypeChunks(
+                chunk_types_to_combine=[BlockType.TABLE_CELL],
+                merge_into_chunk_type=BlockType.TABLE,
+            ),
             chunk_processors.SplitTextIntoSentences(),
             chunkers.FixedLengthChunker(max_chunk_words=150),
             chunk_processors.AddHeadings(),

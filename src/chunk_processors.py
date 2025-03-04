@@ -228,11 +228,25 @@ class CombineSuccessiveSameTypeChunks(PipelineComponent):
 
     :param chunk_types_to_combine: chunk types to be considered for combining. Only
     chunks of the same type will be combined.
+    :param text_separator: the separator to use between chunks when merging
+    :param merge_into_chunk_type: can be used to merge sequences of chunks into a
+    different chunk type. Defaults to None, meaning chunk types will not be changed.
     """
 
-    def __init__(self, chunk_types_to_combine: list[str], text_separator="\n") -> None:
-        self.chunk_types = filter_and_warn_for_unknown_types(chunk_types_to_combine)
+    def __init__(
+        self,
+        chunk_types_to_combine: list[BlockType],
+        text_separator="\n",
+        merge_into_chunk_type: Optional[BlockType] = None,
+    ) -> None:
+        self.chunk_types_to_combine = chunk_types_to_combine
         self.text_separator = text_separator
+        self.merge_into_chunk_type = merge_into_chunk_type
+
+    def _set_chunk_type(self, merged_chunk: Chunk) -> Chunk:
+        if self.merge_into_chunk_type:
+            merged_chunk.chunk_type = self.merge_into_chunk_type
+        return merged_chunk
 
     def __call__(self, chunks: list[Chunk]) -> list[Chunk]:
         """Run chunk combining."""
@@ -242,9 +256,9 @@ class CombineSuccessiveSameTypeChunks(PipelineComponent):
         for chunk in chunks:
             # If the chunk is in types we don't want to combine, we add the previous
             # working 'current_chunk' if there is one.
-            if chunk.chunk_type not in self.chunk_types:
+            if chunk.chunk_type not in self.chunk_types_to_combine:
                 if current_chunk:
-                    new_chunks.append(current_chunk)
+                    new_chunks.append(self._set_chunk_type(current_chunk))
                     current_chunk = None
                 # We also add this chunk and skip to the next iteration.
                 new_chunks.append(chunk)
@@ -262,11 +276,11 @@ class CombineSuccessiveSameTypeChunks(PipelineComponent):
                 )
             # Otherwise, add the current chunk and set a new one.
             else:
-                new_chunks.append(current_chunk)
+                new_chunks.append(self._set_chunk_type(current_chunk))
                 current_chunk = chunk
 
         if current_chunk:
-            new_chunks.append(current_chunk)
+            new_chunks.append(self._set_chunk_type(current_chunk))
 
         return new_chunks
 
