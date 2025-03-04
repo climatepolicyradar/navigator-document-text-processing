@@ -30,6 +30,7 @@ mypy = "^1.11.2"
 pre-commit = "^3.8.0"
 types-requests = "^2.32.0.20240712"
 pandas = "^2.2.2"
+ipykernel = "^6.29.5"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
