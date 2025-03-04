@@ -3,8 +3,10 @@ from pathlib import Path
 from cpr_sdk.parser_models import ParserOutput
 import typer
 import numpy as np
+from typing import Optional
 
 from cpr_sdk.parser_models import BlockType
+from tqdm.auto import tqdm
 
 from src.pipeline import Pipeline
 from src.models import ParserOutputWithChunks
@@ -44,7 +46,7 @@ def run_on_document(document_path: Path):
         encoder=encoders.SBERTEncoder(model_name="BAAI/bge-small-en-v1.5"),
     )
 
-    chunks, embeddings = pipeline(parser_output, encoder_batch_size=100)
+    chunks, embeddings = pipeline(parser_output, encoder_batch_size=16)
 
     parser_output_with_chunks = ParserOutputWithChunks(
         chunks=chunks,
@@ -58,5 +60,10 @@ def run_on_document(document_path: Path):
         np.save(embeddings_path, embeddings)
 
 
+def run_on_dir(dir_path: Path, limit: Optional[int] = None):
+    for file in tqdm(list(dir_path.glob("*.json"))[:limit]):
+        run_on_document(file)
+
+
 if __name__ == "__main__":
-    typer.run(run_on_document)
+    typer.run(run_on_dir)
