@@ -23,8 +23,7 @@ def run_on_document(document_path: Path):
     Outputs a JSON file with chunks, and optionally a numpy file with embeddings.
     """
 
-    if not OUTPUT_DIR.exists():
-        OUTPUT_DIR.mkdir(parents=True)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     parser_output = ParserOutput.model_validate(json.loads(document_path.read_text()))
 
