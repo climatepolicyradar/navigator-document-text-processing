@@ -868,7 +868,6 @@ def test_split_text_into_sentences_with_footnote_between_sentence_parts():
             bounding_boxes=None,
             pages=[11],
             id="35",
-            # heading=Chunk(text="A: The Vision Process", chunk_type=BlockType.SECTION_HEADING, id="heading1", bounding_boxes=None, pages=None),
         ),
         Chunk(
             text='A Steering Committee, led by the Minister of Development and Economic Planning, supervised the consultations and gave technical direction. The work was supported by UNDP\'s Sierra Leone Office and "African Futures", a UNDP regional project based in Abidjan.',
@@ -876,7 +875,6 @@ def test_split_text_into_sentences_with_footnote_between_sentence_parts():
             bounding_boxes=None,
             pages=[11],
             id="36",
-            # heading=Chunk(text="A: The Vision Process", chunk_type=BlockType.SECTION_HEADING, id="heading1", ),
         ),
         Chunk(
             text="rule of law, and justice for all, whose citizens participate actively in national and local management; a dynamic, open, enlightened, integrated society. People called for a new type of leadership - responsible, responsive, effective, and accountable.",
@@ -884,7 +882,6 @@ def test_split_text_into_sentences_with_footnote_between_sentence_parts():
             bounding_boxes=None,
             pages=[12],
             id="37",
-            # heading=Chunk(text="A: The Vision Process", chunk_type=BlockType.SECTION_HEADING, id="heading1", ),
         ),
     ]
 
