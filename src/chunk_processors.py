@@ -395,12 +395,26 @@ class CombineTextChunksIntoList(PipelineComponent):
 
 class SplitTextIntoSentences(PipelineComponent):
     """
-    Split chunks of type TEXT in to sentences.
+    Split chunks of type TEXT in to sentences. Handles sentences which go across chunks.
 
-    Handles sentences which go across chunks.
+    :param chunk_types_to_ignore: List of chunk types that won't be split into sentences.
+    These chunks are passed through unchanged and are treated as "invisible" to the sentence
+    splitter. This means a sentence can span across multiple chunks if they are separated
+    by chunks of these ignored types (like headers or footers). Defaults to PAGE_HEADER,
+    PAGE_FOOTER and FOOT_NOTE.
+
+    TODO: this doesn't preserve sentence positions relative to ignored chunks. See
+    the related unit test for an example.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        chunk_types_to_ignore: list[BlockType] = [
+            BlockType.PAGE_HEADER,
+            BlockType.PAGE_FOOTER,
+            BlockType.FOOT_NOTE,
+        ],
+    ) -> None:
         # Common abbreviations that shouldn't cause sentence splits
         self.common_abbreviations = [
             r"et al\.",
@@ -429,12 +443,18 @@ class SplitTextIntoSentences(PipelineComponent):
             r"[^.!?…]+[.!?…]+(?=\s|\Z)", re.MULTILINE
         )
 
+        self.chunk_types_to_ignore = chunk_types_to_ignore
+
     def __call__(self, chunks: Sequence[Chunk]) -> list[Chunk]:
         """Run sentence splitting."""
         new_chunks: list[Chunk] = []
         incomplete_chunk = None
 
         for chunk in chunks:
+            if chunk.chunk_type in self.chunk_types_to_ignore:
+                new_chunks.append(chunk)
+                continue
+
             if chunk.chunk_type != BlockType.TEXT:
                 if incomplete_chunk:
                     # Add any incomplete sentence before non-text chunk
