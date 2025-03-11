@@ -855,3 +855,61 @@ def test_split_text_into_sentences_with_ignored_chunk_types():
 
     assert result[6].text == "This sentence starts on page 2 and finishes on page 3."
     assert result[6].pages == [2, 3]
+
+
+@pytest.mark.skip(reason="This is an unknown issue with the current sentence splitter.")
+def test_split_text_into_sentences_with_footnote_between_sentence_parts():
+    """Test that sentences can span across chunks separated by a footnote."""
+    processor = SplitTextIntoSentences()
+    chunks = [
+        Chunk(
+            text="They want a united country, based on democratic principles,",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=[11],
+            id="35",
+            # heading=Chunk(text="A: The Vision Process", chunk_type=BlockType.SECTION_HEADING, id="heading1", bounding_boxes=None, pages=None),
+        ),
+        Chunk(
+            text='A Steering Committee, led by the Minister of Development and Economic Planning, supervised the consultations and gave technical direction. The work was supported by UNDP\'s Sierra Leone Office and "African Futures", a UNDP regional project based in Abidjan.',
+            chunk_type=BlockType.FOOT_NOTE,
+            bounding_boxes=None,
+            pages=[11],
+            id="36",
+            # heading=Chunk(text="A: The Vision Process", chunk_type=BlockType.SECTION_HEADING, id="heading1", ),
+        ),
+        Chunk(
+            text="rule of law, and justice for all, whose citizens participate actively in national and local management; a dynamic, open, enlightened, integrated society. People called for a new type of leadership - responsible, responsive, effective, and accountable.",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=[12],
+            id="37",
+            # heading=Chunk(text="A: The Vision Process", chunk_type=BlockType.SECTION_HEADING, id="heading1", ),
+        ),
+    ]
+
+    result = processor(chunks)
+
+    # Should have 3 chunks: the complete sentence that spans chunks, the footnote,
+    # and the second complete sentence from the last chunk
+    assert len(result) == 3
+
+    # First chunk should be the complete sentence that spans the footnote
+    assert (
+        result[0].text
+        == "They want a united country, based on democratic principles, rule of law, and justice for all, whose citizens participate actively in national and local management; a dynamic, open, enlightened, integrated society."
+    )
+    assert result[0].chunk_type == BlockType.TEXT
+    assert result[0].pages == [11, 12]
+
+    # Second chunk should be the footnote (preserved in its original position)
+    assert result[1].chunk_type == BlockType.FOOT_NOTE
+    assert "Steering Committee" in result[1].text
+
+    # Third chunk should be the second complete sentence from the final chunk
+    assert (
+        result[2].text
+        == "People called for a new type of leadership - responsible, responsive, effective, and accountable."
+    )
+    assert result[2].chunk_type == BlockType.TEXT
+    assert result[2].pages == [12]
