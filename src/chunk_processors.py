@@ -300,9 +300,7 @@ class CombineTextChunksIntoList(PipelineComponent):
 
     def __init__(self, text_separator: str = "\n") -> None:
         self.text_separator = text_separator
-        self.list_item_pattern = (
-            r"(^|\n)(?:•|-|·|(?:[\(|\[]?[0-9a-zA-Z]{0,3}[\.|\)|\]])).*?"
-        )
+        self.list_item_pattern = r"(^|\n)(?:•|-|·|(?:[\(|\[]?[0-9a-zA-Z]{0,3}[\.|\)|\]])|(?:[A-Za-z][-–])).*?"
 
     def __call__(self, chunks: list[Chunk]) -> list[Chunk]:
         """Run list item combining."""

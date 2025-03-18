@@ -456,6 +456,20 @@ def test_combine_text_chunks_into_list():
             pages=None,
             id="7",
         ),
+        Chunk(
+            text="C- Apparently some people format lists like this",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=None,
+            id="8",
+        ),
+        Chunk(
+            text="D– Groan",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=None,
+            id="8",
+        ),
     ]
 
     result = processor(chunks)
@@ -477,7 +491,10 @@ def test_combine_text_chunks_into_list():
     assert result[2].chunk_type == BlockType.TITLE
 
     # Fourth chunk should be combined list items
-    assert result[3].text == "a) Another list item\n[b] Final list item"
+    assert (
+        result[3].text
+        == "a) Another list item\n[b] Final list item\nC- Apparently some people format lists like this\nD– Groan"
+    )
     assert result[3].chunk_type == BlockType.LIST
 
 
