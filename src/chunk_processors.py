@@ -523,6 +523,21 @@ class SplitTextIntoSentences(PipelineComponent):
         placeholder_map = {}
         modified_text = text
 
+        decimal_percentage_pattern = r"\d+(\.\d+)+%?"
+        version_pattern = r"v?\d+(\.\d+)+"  # handles version numbers like v1.2.3
+        number_pattern = rf"{decimal_percentage_pattern}|{version_pattern}"
+
+        matches = re.finditer(number_pattern, modified_text)
+        for match in reversed(list(matches)):
+            placeholder = f"__NUM_{match.start()}__"
+            num_text = modified_text[match.start() : match.end()]
+            placeholder_map[placeholder] = num_text
+            modified_text = (
+                modified_text[: match.start()]
+                + placeholder
+                + modified_text[match.end() :]
+            )
+
         for i, abbr in enumerate(self.common_abbreviations):
             placeholder = f"__ABBR_{i}__"
 

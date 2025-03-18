@@ -904,3 +904,43 @@ def test_split_text_into_sentences_with_footnote_between_sentence_parts():
         chunk for chunk in result if chunk.chunk_type == BlockType.FOOT_NOTE
     ][0]
     assert footnote_result == chunks[1]
+
+
+def test_split_text_into_sentences_with_decimals_and_abbreviations():
+    """Test that decimal numbers are not split into multiple chunks."""
+    processor = SplitTextIntoSentences()
+    chunks = [
+        Chunk(
+            text="The value is 3.14 and that's important. The second value is 2.718.",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=None,
+            id="1",
+        ),
+        Chunk(
+            text="We also have $5.99 as a price. And a version number like v1.2.3 should stay together.",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=None,
+            id="2",
+        ),
+        Chunk(
+            text="Abbreviations like Dr. Smith and Mrs. Jones should be handled properly.",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=None,
+            id="3",
+        ),
+    ]
+
+    result = processor(chunks)
+
+    assert len(result) == 5
+    assert result[0].text == "The value is 3.14 and that's important."
+    assert result[1].text == "The second value is 2.718."
+    assert result[2].text == "We also have $5.99 as a price."
+    assert result[3].text == "And a version number like v1.2.3 should stay together."
+    assert (
+        result[4].text
+        == "Abbreviations like Dr. Smith and Mrs. Jones should be handled properly."
+    )
