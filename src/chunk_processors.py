@@ -179,14 +179,25 @@ class RemoveRegexPattern(PipelineComponent):
     """
     Remove text from chunks that matches a regex pattern.
 
-    If the chunk's entire text matches the regex pattern, remove the chunk. If it
-    just contains text with the regex pattern, replace the pattern with the text
+    :param pattern: the regex pattern to match
+    :param replace_with: the text to replace the pattern with
+    :param complete_match_only: if True, don't do any text replacement – just remove
+    chunks that match the pattern exactly. If False, replace the pattern with the text
     specified.
+    :param chunk_types: if specified, only process chunks of these types
     """
 
-    def __init__(self, pattern: str, replace_with: str) -> None:
+    def __init__(
+        self,
+        pattern: str,
+        replace_with: str = " ",
+        complete_match_only: bool = False,
+        chunk_types: list[BlockType] = [],
+    ) -> None:
         self.pattern = pattern
         self.replace_with = replace_with
+        self.complete_match_only = complete_match_only
+        self.chunk_types = chunk_types or None
 
     def __call__(self, chunks: list[Chunk]) -> list[Chunk]:
         """Run regex pattern removal."""
@@ -194,19 +205,25 @@ class RemoveRegexPattern(PipelineComponent):
         new_chunks: list[Chunk] = []
 
         for chunk in chunks:
+            if self.chunk_types and chunk.chunk_type not in self.chunk_types:
+                new_chunks.append(chunk)
+                continue
+
             # If the entire text matches the pattern, skip this chunk
             if re.match(f"^{self.pattern}$", chunk.text):
                 continue
 
-            # Otherwise remove any matches of the pattern from the text
-            new_text = re.sub(self.pattern, self.replace_with, chunk.text)
-            new_chunk = chunk.model_copy()
-            new_chunk.text = new_text.strip()
+            if self.complete_match_only:
+                # No text replacement – add the chunk unchanged
+                new_chunks.append(chunk)
+            else:
+                new_text = re.sub(self.pattern, self.replace_with, chunk.text)
 
-            # Match cases where the text is made up of multiple repeated instances of
-            # the pattern.
-            if new_chunk.text:
-                new_chunks.append(new_chunk)
+                new_chunk = chunk.model_copy()
+                new_chunk.text = new_text.strip()
+
+                if new_chunk.text:
+                    new_chunks.append(new_chunk)
 
         return new_chunks
 
@@ -220,6 +237,21 @@ class RemoveFalseCheckboxes(RemoveRegexPattern):
 
     def __init__(self) -> None:
         super().__init__(pattern=r"\s?:(?:un)?selected:\s?", replace_with=" ")
+
+
+class RemoveMisclassifiedPageNumbers(RemoveRegexPattern):
+    """
+    Remove page header and footer typed chunks that are actually page numbers.
+
+    These should be detected as PAGE_NUMBER type chunks, but aren't always.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            pattern=r"(?i)^(?:page\s*)?\s*\d+",
+            complete_match_only=True,
+            chunk_types=[BlockType.PAGE_HEADER, BlockType.PAGE_FOOTER],
+        )
 
 
 class CombineSuccessiveSameTypeChunks(PipelineComponent):

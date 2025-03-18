@@ -12,6 +12,7 @@ from src.chunk_processors import (
     CombineSuccessiveSameTypeChunks,
     CombineTextChunksIntoList,
     SplitTextIntoSentences,
+    RemoveMisclassifiedPageNumbers,
 )
 
 
@@ -944,3 +945,59 @@ def test_split_text_into_sentences_with_decimals_and_abbreviations():
         result[4].text
         == "Abbreviations like Dr. Smith and Mrs. Jones should be handled properly."
     )
+
+
+def test_remove_misclassified_page_numbers():
+    """Test removal of numeric page headers and footers."""
+    processor = RemoveMisclassifiedPageNumbers()
+    chunks = [
+        Chunk(
+            text="Page 1",
+            chunk_type=BlockType.PAGE_HEADER,
+            bounding_boxes=None,
+            pages=None,
+            id="1",
+        ),
+        Chunk(
+            text="42",
+            chunk_type=BlockType.PAGE_FOOTER,
+            bounding_boxes=None,
+            pages=None,
+            id="2",
+        ),
+        Chunk(
+            text="Regular content",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=None,
+            id="3",
+        ),
+        Chunk(
+            text="page 15",
+            chunk_type=BlockType.PAGE_HEADER,
+            bounding_boxes=None,
+            pages=None,
+            id="4",
+        ),
+        Chunk(
+            text="Page with extra text",
+            chunk_type=BlockType.PAGE_HEADER,
+            bounding_boxes=None,
+            pages=None,
+            id="5",
+        ),
+        Chunk(
+            text="123",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=None,
+            id="6",
+        ),
+    ]
+
+    result = processor(chunks)
+
+    assert len(result) == 3
+    assert result[0].text == "Regular content"
+    assert result[1].text == "Page with extra text"
+    assert result[2].text == "123"
