@@ -824,37 +824,25 @@ def test_split_text_into_sentences_with_ignored_chunk_types():
 
     result = processor(chunks)
 
-    # 3 sentences + 4 header/footer chunks
-    assert len(result) == 7
+    assert [chunk.text for chunk in result] == [
+        "This is the beginning of a sentence that continues across page boundaries.",
+        "Page 1",
+        "Page 2",
+        "This is a complete sentence on page 2.",
+        "This sentence starts on page 2 and finishes on page 3.",
+        "Page 2",
+        "Page 3",
+    ]
 
-    # TODO: the current logic doesn't preserve sentence positions relative to ignored
-    # chunks, when the sentences are across multiple chunks.
-    # This means that the final order is
-    # - Page 1 footer
-    # - Page 2 header
-    # - Page 1 & 2 text
-    # - Page 2 text
-    # - Page 2 footer
-    # - Page 3 header
-    # - Page 2 & 3 text
-
-    # Check that the ignored chunks are preserved
-    # assert result[1].chunk_type == BlockType.PAGE_FOOTER
-    # assert result[2].chunk_type == BlockType.PAGE_HEADER
-    # assert result[5].chunk_type == BlockType.PAGE_FOOTER
-    # assert result[6].chunk_type == BlockType.PAGE_HEADER
-
-    assert (
-        result[2].text
-        == "This is the beginning of a sentence that continues across page boundaries."
-    )
-    assert result[2].pages == [1, 2]
-
-    assert result[3].text == "This is a complete sentence on page 2."
-    assert result[3].pages == [2]
-
-    assert result[6].text == "This sentence starts on page 2 and finishes on page 3."
-    assert result[6].pages == [2, 3]
+    assert [chunk.chunk_type for chunk in result] == [
+        BlockType.TEXT,
+        BlockType.PAGE_FOOTER,
+        BlockType.PAGE_HEADER,
+        BlockType.TEXT,
+        BlockType.TEXT,
+        BlockType.PAGE_FOOTER,
+        BlockType.PAGE_HEADER,
+    ]
 
 
 def test_split_text_into_sentences_with_footnote_between_sentence_parts():
@@ -886,15 +874,12 @@ def test_split_text_into_sentences_with_footnote_between_sentence_parts():
 
     result = processor(chunks)
 
-    # Should have 3 chunks: the complete sentence that spans chunks, the footnote,
-    # and the second complete sentence from the last chunk
     assert len(result) == 3
 
-    # Text block text should be correct
-    # TODO: the text isn't in the order we want relative to the footnote yet
-    assert [chunk.text for chunk in result if chunk.chunk_type == BlockType.TEXT] == [
+    assert [chunk.text for chunk in result] == [
         "They want a united country, based on democratic principles, rule of law, and justice for all, whose citizens participate actively in national and local management; a dynamic, open, enlightened, integrated society.",
         "People called for a new type of leadership - responsible, responsive, effective, and accountable.",
+        'A Steering Committee, led by the Minister of Development and Economic Planning, supervised the consultations and gave technical direction. The work was supported by UNDP\'s Sierra Leone Office and "African Futures", a UNDP regional project based in Abidjan.',
     ]
 
     # Footnote chunk should be unchanged
