@@ -400,9 +400,6 @@ class SplitTextIntoSentences(PipelineComponent):
     splitter. This means a sentence can span across multiple chunks if they are separated
     by chunks of these ignored types (like headers or footers). Defaults to PAGE_HEADER,
     PAGE_FOOTER and FOOT_NOTE.
-
-    TODO: this doesn't preserve sentence positions relative to ignored chunks. See
-    the related unit test for an example.
     """
 
     def __init__(
