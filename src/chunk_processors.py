@@ -162,6 +162,7 @@ class AddHeadings(PipelineComponent):
         for chunk in new_chunks:
             if chunk.chunk_type in self.heading_types:
                 current_heading = chunk
+                current_subheading = None
                 # A heading is the top level, so we don't want it to have a heading
                 # itself
                 continue
