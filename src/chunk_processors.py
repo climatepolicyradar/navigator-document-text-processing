@@ -395,12 +395,23 @@ class CombineTextChunksIntoList(PipelineComponent):
 
 class SplitTextIntoSentences(PipelineComponent):
     """
-    Split chunks of type TEXT in to sentences.
+    Split chunks of type TEXT in to sentences. Handles sentences which go across chunks.
 
-    Handles sentences which go across chunks.
+    :param chunk_types_to_ignore: List of chunk types that won't be split into sentences.
+    These chunks are passed through unchanged and are treated as "invisible" to the sentence
+    splitter. This means a sentence can span across multiple chunks if they are separated
+    by chunks of these ignored types (like headers or footers). Defaults to PAGE_HEADER,
+    PAGE_FOOTER and FOOT_NOTE.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        chunk_types_to_ignore: list[BlockType] = [
+            BlockType.PAGE_HEADER,
+            BlockType.PAGE_FOOTER,
+            BlockType.FOOT_NOTE,
+        ],
+    ) -> None:
         # Common abbreviations that shouldn't cause sentence splits
         self.common_abbreviations = [
             r"et al\.",
@@ -429,18 +440,27 @@ class SplitTextIntoSentences(PipelineComponent):
             r"[^.!?…]+[.!?…]+(?=\s|\Z)", re.MULTILINE
         )
 
+        self.chunk_types_to_ignore = chunk_types_to_ignore
+
     def __call__(self, chunks: Sequence[Chunk]) -> list[Chunk]:
         """Run sentence splitting."""
         new_chunks: list[Chunk] = []
         incomplete_chunk = None
+        skipped_chunk_buffer = []
 
         for chunk in chunks:
+            if chunk.chunk_type in self.chunk_types_to_ignore:
+                skipped_chunk_buffer.append(chunk)
+                continue
+
             if chunk.chunk_type != BlockType.TEXT:
                 if incomplete_chunk:
                     # Add any incomplete sentence before non-text chunk
                     new_chunks.append(incomplete_chunk)
                     incomplete_chunk = None
                 new_chunks.append(chunk)
+                new_chunks.extend(skipped_chunk_buffer)
+                skipped_chunk_buffer = []
                 continue
 
             if incomplete_chunk:
@@ -450,6 +470,11 @@ class SplitTextIntoSentences(PipelineComponent):
             else:
                 text = chunk.text
                 current_chunk = chunk
+
+                # If we're starting on a new sentence in the next chunk (there aren't
+                # any partial sentences underway), then add the ignored chunks.
+                new_chunks.extend(skipped_chunk_buffer)
+                skipped_chunk_buffer = []
 
             # Process text for complete sentences
             complete_sentences = self._extract_complete_sentences(text)
@@ -476,9 +501,15 @@ class SplitTextIntoSentences(PipelineComponent):
             else:
                 incomplete_chunk = None
 
+            # Add any skipped chunks
+            new_chunks.extend(skipped_chunk_buffer)
+            skipped_chunk_buffer = []
+
         # Handle any remaining incomplete sentence at the end
         if incomplete_chunk:
             new_chunks.append(incomplete_chunk)
+
+        new_chunks.extend(skipped_chunk_buffer)
 
         return new_chunks
 

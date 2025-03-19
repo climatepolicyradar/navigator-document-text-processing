@@ -749,3 +749,141 @@ def test_split_text_into_sentences_complex_cases(input_chunks, expected_text):
     assert len(result) == 1
     assert result[0].text == expected_text
     assert result[0].chunk_type == BlockType.TEXT
+
+
+def test_split_text_into_sentences_with_ignored_chunk_types():
+    """Test that sentences can span across chunks separated by ignored chunk types."""
+    processor = SplitTextIntoSentences(
+        chunk_types_to_ignore=[BlockType.PAGE_HEADER, BlockType.PAGE_FOOTER]
+    )
+    chunks = [
+        Chunk(
+            text="This is the beginning of a sentence",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=[1],
+            id="1",
+        ),
+        Chunk(
+            text="Page 1",
+            chunk_type=BlockType.PAGE_FOOTER,
+            bounding_boxes=None,
+            pages=[1],
+            id="2",
+        ),
+        Chunk(
+            text="Page 2",
+            chunk_type=BlockType.PAGE_HEADER,
+            bounding_boxes=None,
+            pages=[2],
+            id="3",
+        ),
+        Chunk(
+            text="that continues across page boundaries.",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=[2],
+            id="4",
+        ),
+        Chunk(
+            text="This is a complete sentence on page 2.",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=[2],
+            id="5",
+        ),
+        Chunk(
+            text="This sentence starts on page 2",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=[2],
+            id="6",
+        ),
+        Chunk(
+            text="Page 2",
+            chunk_type=BlockType.PAGE_FOOTER,
+            bounding_boxes=None,
+            pages=[2],
+            id="7",
+        ),
+        Chunk(
+            text="Page 3",
+            chunk_type=BlockType.PAGE_HEADER,
+            bounding_boxes=None,
+            pages=[3],
+            id="8",
+        ),
+        Chunk(
+            text="and finishes on page 3.",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=[3],
+            id="9",
+        ),
+    ]
+
+    result = processor(chunks)
+
+    assert [chunk.text for chunk in result] == [
+        "This is the beginning of a sentence that continues across page boundaries.",
+        "Page 1",
+        "Page 2",
+        "This is a complete sentence on page 2.",
+        "This sentence starts on page 2 and finishes on page 3.",
+        "Page 2",
+        "Page 3",
+    ]
+
+    assert [chunk.chunk_type for chunk in result] == [
+        BlockType.TEXT,
+        BlockType.PAGE_FOOTER,
+        BlockType.PAGE_HEADER,
+        BlockType.TEXT,
+        BlockType.TEXT,
+        BlockType.PAGE_FOOTER,
+        BlockType.PAGE_HEADER,
+    ]
+
+
+def test_split_text_into_sentences_with_footnote_between_sentence_parts():
+    """Test that sentences can span across chunks separated by a footnote."""
+    processor = SplitTextIntoSentences()
+    chunks = [
+        Chunk(
+            text="They want a united country, based on democratic principles,",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=[11],
+            id="35",
+        ),
+        Chunk(
+            text='A Steering Committee, led by the Minister of Development and Economic Planning, supervised the consultations and gave technical direction. The work was supported by UNDP\'s Sierra Leone Office and "African Futures", a UNDP regional project based in Abidjan.',
+            chunk_type=BlockType.FOOT_NOTE,
+            bounding_boxes=None,
+            pages=[11],
+            id="36",
+        ),
+        Chunk(
+            text="rule of law, and justice for all, whose citizens participate actively in national and local management; a dynamic, open, enlightened, integrated society. People called for a new type of leadership - responsible, responsive, effective, and accountable.",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=[12],
+            id="37",
+        ),
+    ]
+
+    result = processor(chunks)
+
+    assert len(result) == 3
+
+    assert [chunk.text for chunk in result] == [
+        "They want a united country, based on democratic principles, rule of law, and justice for all, whose citizens participate actively in national and local management; a dynamic, open, enlightened, integrated society.",
+        "People called for a new type of leadership - responsible, responsive, effective, and accountable.",
+        'A Steering Committee, led by the Minister of Development and Economic Planning, supervised the consultations and gave technical direction. The work was supported by UNDP\'s Sierra Leone Office and "African Futures", a UNDP regional project based in Abidjan.',
+    ]
+
+    # Footnote chunk should be unchanged
+    footnote_result = [
+        chunk for chunk in result if chunk.chunk_type == BlockType.FOOT_NOTE
+    ][0]
+    assert footnote_result == chunks[1]

@@ -38,6 +38,13 @@ def run_on_document(document_path: Path):
                 chunk_types_to_combine=[BlockType.TABLE_CELL],
                 merge_into_chunk_type=BlockType.TABLE,
             ),
+            chunk_processors.CombineSuccessiveSameTypeChunks(
+                chunk_types_to_combine=[
+                    BlockType.TITLE,
+                    BlockType.TITLE_LOWER_CASE,
+                    BlockType.SECTION_HEADING,
+                ]
+            ),
             chunk_processors.SplitTextIntoSentences(),
             chunkers.FixedLengthChunker(max_chunk_words=150),
             chunk_processors.AddHeadings(),
