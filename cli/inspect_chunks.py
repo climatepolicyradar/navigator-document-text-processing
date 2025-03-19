@@ -17,6 +17,7 @@ import numpy as np
 import typer
 from pathlib import Path
 from typing import Optional
+from enum import Enum
 from rich.console import Console
 from rich.text import Text
 from rich.prompt import Prompt
@@ -128,8 +129,17 @@ def create_layout(main_content, headings_content):
     return layout
 
 
+class SortValue(str, Enum):
+    """Used for the view command of this script, to sort chunks by length."""
+
+    LONGEST = "longest"
+    SHORTEST = "shortest"
+
+
 @app.command()
-def view(file_path: Path, chunk_index: Optional[int] = None):
+def view(
+    file_path: Path, chunk_index: Optional[int] = None, sort: Optional[SortValue] = None
+):
     """
     View chunks from the processed document.
 
@@ -155,10 +165,14 @@ def view(file_path: Path, chunk_index: Optional[int] = None):
                 f"[bold red]Error:[/] Chunk index {chunk_index} is out of range (0-{len(data.chunks)-1})."
             )
     else:
-        # Display all chunks with a single headings sidebar
         with console.pager(styles=True):
             console.print(Panel(headings_content, title="Headings", title_align="left"))
             console.print("\n")
+
+            if sort == "longest":
+                data.chunks.sort(key=lambda x: len(x.text), reverse=True)
+            elif sort == "shortest":
+                data.chunks.sort(key=lambda x: len(x.text), reverse=False)
 
             # Display all chunks one after another
             for i, chunk in enumerate(data.chunks):
