@@ -38,7 +38,7 @@ class HeadingAwareSerializer(PipelineComponent):
 
         for chunk in new_chunks:
             chunk.serialized_text = (
-                self.template.format(text=chunk.text, heading=chunk.heading)
+                self.template.format(text=chunk.text, heading=chunk.heading.text)
                 if chunk.heading
                 else chunk.text
             )
