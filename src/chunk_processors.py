@@ -182,7 +182,7 @@ class RemoveRegexPattern(PipelineComponent):
 
     :param pattern: the regex pattern to match
     :param replace_with: the text to replace the pattern with
-    :param complete_match_only: if True, don't do any text replacement – just remove
+    :param skip_partial_replacements: if True, don't do any text replacement – just remove
     chunks that match the pattern exactly. If False, replace the pattern with the text
     specified.
     :param chunk_types: if specified, only process chunks of these types
@@ -192,12 +192,12 @@ class RemoveRegexPattern(PipelineComponent):
         self,
         pattern: str,
         replace_with: str = " ",
-        complete_match_only: bool = False,
+        skip_partial_replacements: bool = False,
         chunk_types: list[BlockType] = [],
     ) -> None:
         self.pattern = pattern
         self.replace_with = replace_with
-        self.complete_match_only = complete_match_only
+        self.skip_partial_replacements = skip_partial_replacements
         self.chunk_types = chunk_types or None
 
     def __call__(self, chunks: list[Chunk]) -> list[Chunk]:
@@ -214,7 +214,7 @@ class RemoveRegexPattern(PipelineComponent):
             if re.match(f"^{self.pattern}$", chunk.text):
                 continue
 
-            if self.complete_match_only:
+            if self.skip_partial_replacements:
                 # No text replacement – add the chunk unchanged
                 new_chunks.append(chunk)
             else:
@@ -250,7 +250,7 @@ class RemoveMisclassifiedPageNumbers(RemoveRegexPattern):
     def __init__(self) -> None:
         super().__init__(
             pattern=r"(?i)^(?:page\s*)?\s*\d+",
-            complete_match_only=True,
+            skip_partial_replacements=True,
             chunk_types=[BlockType.PAGE_HEADER, BlockType.PAGE_FOOTER],
         )
 
