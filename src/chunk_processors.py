@@ -162,6 +162,7 @@ class AddHeadings(PipelineComponent):
         for chunk in new_chunks:
             if chunk.chunk_type in self.heading_types:
                 current_heading = chunk
+                current_subheading = None
                 # A heading is the top level, so we don't want it to have a heading
                 # itself
                 continue
@@ -179,14 +180,25 @@ class RemoveRegexPattern(PipelineComponent):
     """
     Remove text from chunks that matches a regex pattern.
 
-    If the chunk's entire text matches the regex pattern, remove the chunk. If it
-    just contains text with the regex pattern, replace the pattern with the text
+    :param pattern: the regex pattern to match
+    :param replace_with: the text to replace the pattern with
+    :param skip_partial_replacements: if True, don't do any text replacement – just remove
+    chunks that match the pattern exactly. If False, replace the pattern with the text
     specified.
+    :param chunk_types: if specified, only process chunks of these types
     """
 
-    def __init__(self, pattern: str, replace_with: str) -> None:
+    def __init__(
+        self,
+        pattern: str,
+        replace_with: str = " ",
+        skip_partial_replacements: bool = False,
+        chunk_types: list[BlockType] = [],
+    ) -> None:
         self.pattern = pattern
         self.replace_with = replace_with
+        self.skip_partial_replacements = skip_partial_replacements
+        self.chunk_types = chunk_types or None
 
     def __call__(self, chunks: list[Chunk]) -> list[Chunk]:
         """Run regex pattern removal."""
@@ -194,19 +206,25 @@ class RemoveRegexPattern(PipelineComponent):
         new_chunks: list[Chunk] = []
 
         for chunk in chunks:
+            if self.chunk_types and chunk.chunk_type not in self.chunk_types:
+                new_chunks.append(chunk)
+                continue
+
             # If the entire text matches the pattern, skip this chunk
             if re.match(f"^{self.pattern}$", chunk.text):
                 continue
 
-            # Otherwise remove any matches of the pattern from the text
-            new_text = re.sub(self.pattern, self.replace_with, chunk.text)
-            new_chunk = chunk.model_copy()
-            new_chunk.text = new_text.strip()
+            if self.skip_partial_replacements:
+                # No text replacement – add the chunk unchanged
+                new_chunks.append(chunk)
+            else:
+                new_text = re.sub(self.pattern, self.replace_with, chunk.text)
 
-            # Match cases where the text is made up of multiple repeated instances of
-            # the pattern.
-            if new_chunk.text:
-                new_chunks.append(new_chunk)
+                new_chunk = chunk.model_copy()
+                new_chunk.text = new_text.strip()
+
+                if new_chunk.text:
+                    new_chunks.append(new_chunk)
 
         return new_chunks
 
@@ -220,6 +238,21 @@ class RemoveFalseCheckboxes(RemoveRegexPattern):
 
     def __init__(self) -> None:
         super().__init__(pattern=r"\s?:(?:un)?selected:\s?", replace_with=" ")
+
+
+class RemoveMisclassifiedPageNumbers(RemoveRegexPattern):
+    """
+    Remove page header and footer typed chunks that are actually page numbers.
+
+    These should be detected as PAGE_NUMBER type chunks, but aren't always.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            pattern=r"(?i)^(?:page\s*)?\s*\d+",
+            skip_partial_replacements=True,
+            chunk_types=[BlockType.PAGE_HEADER, BlockType.PAGE_FOOTER],
+        )
 
 
 class CombineSuccessiveSameTypeChunks(PipelineComponent):
@@ -300,9 +333,7 @@ class CombineTextChunksIntoList(PipelineComponent):
 
     def __init__(self, text_separator: str = "\n") -> None:
         self.text_separator = text_separator
-        self.list_item_pattern = (
-            r"(^|\n)(?:•|-|·|(?:[\(|\[]?[0-9a-zA-Z]{0,3}[\.|\)|\]])).*?"
-        )
+        self.list_item_pattern = r"(^|\n)(?:•|-|·|(?:[\(|\[]?[0-9a-zA-Z]{0,3}[\.|\)|\]])|(?:[A-Za-z][-–])).*?"
 
     def __call__(self, chunks: list[Chunk]) -> list[Chunk]:
         """Run list item combining."""
@@ -524,6 +555,21 @@ class SplitTextIntoSentences(PipelineComponent):
 
         placeholder_map = {}
         modified_text = text
+
+        decimal_percentage_pattern = r"\d+(\.\d+)+%?"
+        version_pattern = r"v?\d+(\.\d+)+"  # handles version numbers like v1.2.3
+        number_pattern = rf"{decimal_percentage_pattern}|{version_pattern}"
+
+        matches = re.finditer(number_pattern, modified_text)
+        for match in reversed(list(matches)):
+            placeholder = f"__NUM_{match.start()}__"
+            num_text = modified_text[match.start() : match.end()]
+            placeholder_map[placeholder] = num_text
+            modified_text = (
+                modified_text[: match.start()]
+                + placeholder
+                + modified_text[match.end() :]
+            )
 
         for i, abbr in enumerate(self.common_abbreviations):
             placeholder = f"__ABBR_{i}__"

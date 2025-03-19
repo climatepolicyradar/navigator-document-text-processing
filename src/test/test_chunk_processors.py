@@ -12,6 +12,7 @@ from src.chunk_processors import (
     CombineSuccessiveSameTypeChunks,
     CombineTextChunksIntoList,
     SplitTextIntoSentences,
+    RemoveMisclassifiedPageNumbers,
 )
 
 
@@ -456,6 +457,20 @@ def test_combine_text_chunks_into_list():
             pages=None,
             id="7",
         ),
+        Chunk(
+            text="C- Apparently some people format lists like this",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=None,
+            id="8",
+        ),
+        Chunk(
+            text="D– Groan",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=None,
+            id="8",
+        ),
     ]
 
     result = processor(chunks)
@@ -477,7 +492,10 @@ def test_combine_text_chunks_into_list():
     assert result[2].chunk_type == BlockType.TITLE
 
     # Fourth chunk should be combined list items
-    assert result[3].text == "a) Another list item\n[b] Final list item"
+    assert (
+        result[3].text
+        == "a) Another list item\n[b] Final list item\nC- Apparently some people format lists like this\nD– Groan"
+    )
     assert result[3].chunk_type == BlockType.LIST
 
 
@@ -887,3 +905,99 @@ def test_split_text_into_sentences_with_footnote_between_sentence_parts():
         chunk for chunk in result if chunk.chunk_type == BlockType.FOOT_NOTE
     ][0]
     assert footnote_result == chunks[1]
+
+
+def test_split_text_into_sentences_with_decimals_and_abbreviations():
+    """Test that decimal numbers are not split into multiple chunks."""
+    processor = SplitTextIntoSentences()
+    chunks = [
+        Chunk(
+            text="The value is 3.14 and that's important. The second value is 2.718.",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=None,
+            id="1",
+        ),
+        Chunk(
+            text="We also have $5.99 as a price. And a version number like v1.2.3 should stay together.",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=None,
+            id="2",
+        ),
+        Chunk(
+            text="Abbreviations like Dr. Smith and Mrs. Jones should be handled properly.",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=None,
+            id="3",
+        ),
+    ]
+
+    result = processor(chunks)
+
+    assert len(result) == 5
+    assert result[0].text == "The value is 3.14 and that's important."
+    assert result[1].text == "The second value is 2.718."
+    assert result[2].text == "We also have $5.99 as a price."
+    assert result[3].text == "And a version number like v1.2.3 should stay together."
+    assert (
+        result[4].text
+        == "Abbreviations like Dr. Smith and Mrs. Jones should be handled properly."
+    )
+
+
+def test_remove_misclassified_page_numbers():
+    """Test removal of numeric page headers and footers."""
+    processor = RemoveMisclassifiedPageNumbers()
+    chunks = [
+        Chunk(
+            text="Page 1",
+            chunk_type=BlockType.PAGE_HEADER,
+            bounding_boxes=None,
+            pages=None,
+            id="1",
+        ),
+        Chunk(
+            text="42",
+            chunk_type=BlockType.PAGE_FOOTER,
+            bounding_boxes=None,
+            pages=None,
+            id="2",
+        ),
+        Chunk(
+            text="Regular content",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=None,
+            id="3",
+        ),
+        Chunk(
+            text="page 15",
+            chunk_type=BlockType.PAGE_HEADER,
+            bounding_boxes=None,
+            pages=None,
+            id="4",
+        ),
+        Chunk(
+            text="Page with extra text",
+            chunk_type=BlockType.PAGE_HEADER,
+            bounding_boxes=None,
+            pages=None,
+            id="5",
+        ),
+        Chunk(
+            text="123",
+            chunk_type=BlockType.TEXT,
+            bounding_boxes=None,
+            pages=None,
+            id="6",
+        ),
+    ]
+
+    result = processor(chunks)
+
+    assert len(result) == 3
+    assert result[0].text == "Regular content"
+    assert result[1].text == "Page with extra text"
+    assert result[2].text == "123"
