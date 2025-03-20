@@ -27,6 +27,7 @@ from src.chunk_processors import (
     RemoveRepeatedAdjacentChunks,
     RemoveFalseCheckboxes,
 )
+from src import tokenizers
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 DEFAULT_LOGGING = {
@@ -190,6 +191,7 @@ def run_embeddings_generation(
             RemoveRepeatedAdjacentChunks(),
             BasicSerializer(),
             RemoveFalseCheckboxes(),
+            tokenizers.NLTKWordTokenizer(),
         ],
         encoder=encoder,
     )

@@ -11,7 +11,7 @@ from tqdm.auto import tqdm
 
 from src.pipeline import Pipeline
 from src.models import ParserOutputWithChunks
-from src import chunk_processors, chunkers, serializers, encoders
+from src import chunk_processors, chunkers, serializers, encoders, tokenizers
 
 OUTPUT_DIR = Path(__file__).parent / "data/dev_pipeline_output"
 
@@ -48,6 +48,7 @@ def run_on_document(document_path: Path):
             ),
             chunk_processors.SplitTextIntoSentences(),
             chunkers.FixedLengthChunker(max_chunk_words=150),
+            tokenizers.NLTKWordTokenizer(),
             chunk_processors.AddHeadings(),
             serializers.VerboseHeadingAwareSerializer(),
         ],

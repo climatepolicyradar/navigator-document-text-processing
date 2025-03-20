@@ -21,6 +21,9 @@ RUN poetry install
 RUN mkdir /models
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/msmarco-distilbert-dot-v5', cache_folder='/models')"
 
+# Download the NLTK data
+RUN python -c "import nltk; nltk.download('punkt_tab')"
+
 # Copy files to image
 COPY ./src ./src
 COPY ./cli ./cli
