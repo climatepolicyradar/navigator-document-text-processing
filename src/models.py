@@ -1,8 +1,8 @@
-from typing import Optional
+from typing import Optional, Annotated
 from abc import ABC, abstractmethod
 import logging
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from cpr_sdk.parser_models import BlockType, ParserOutput
 
@@ -17,9 +17,13 @@ class Chunk(BaseModel):
     chunk_type: BlockType
     # TODO: do we want multiple headings here? this is what docling does.
     heading: Optional["Chunk"] = None
-    # Bounding boxes can be arbitrary polygons according to Azure
-    # TODO: is this true according to the backend or frontend?
-    bounding_boxes: Optional[list[list[tuple[float, float]]]]
+    # Bounding boxes can be arbitrary polygons according to Azure, but we assume
+    # they're quadrilaterals in the frontend PDF viewer code. So it makes sense to
+    # carry this assumption back to here.
+    # See https://github.com/climatepolicyradar/navigator-frontend/blob/b7f25a3fd2ed815fbb09416b9a046f0f1c41a0cf/src/hooks/usePDFPreview.ts#L20
+    bounding_boxes: Optional[
+        list[Annotated[list[tuple[float, float]], Field(min_length=4, max_length=4)]]
+    ]
     pages: Optional[list[int]]
     tokens: Optional[list[str]] = None
     serialized_text: Optional[str] = None
