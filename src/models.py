@@ -15,7 +15,6 @@ class Chunk(BaseModel):
     id: str
     text: str
     chunk_type: BlockType
-    # TODO: do we want multiple headings here? this is what docling does.
     heading: Optional["Chunk"] = None
     # Bounding boxes can be arbitrary polygons according to Azure, but we assume
     # they're quadrilaterals in the frontend PDF viewer code. So it makes sense to
