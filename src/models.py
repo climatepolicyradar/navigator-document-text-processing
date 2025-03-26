@@ -2,7 +2,7 @@ from typing import Optional
 from abc import ABC, abstractmethod
 import logging
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from cpr_sdk.parser_models import BlockType, ParserOutput
 
@@ -15,14 +15,49 @@ class Chunk(BaseModel):
     id: str
     text: str
     chunk_type: BlockType
-    # TODO: do we want multiple headings here? this is what docling does.
     heading: Optional["Chunk"] = None
-    # Bounding boxes can be arbitrary polygons according to Azure
-    # TODO: is this true according to the backend or frontend?
     bounding_boxes: Optional[list[list[tuple[float, float]]]]
     pages: Optional[list[int]]
     tokens: Optional[list[str]] = None
     serialized_text: Optional[str] = None
+
+    @field_validator("bounding_boxes", mode="after")
+    @classmethod
+    def _verify_bounding_boxes(cls, value) -> None:
+        """Verify bounding boxes are compatible their downstream use in the frontend.
+
+        This means they should follow the following pattern (also meaning they're
+        rectangular):
+        [
+            [xmin, ymin],
+            [xmax, ymin],
+            [xmax, ymax],
+            [xmin, ymax]
+        ]
+
+        See https://github.com/climatepolicyradar/navigator-frontend/blob/b7f25a3fd2ed815fbb09416b9a046f0f1c41a0cf/src/hooks/usePDFPreview.ts#L20
+        """
+
+        coordinate_spec = "[[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]]"
+
+        if value is not None:
+            for box in value:
+                if len(box) != 4:
+                    raise ValueError("Bounding boxes must have exactly 4 points.")
+
+                [x1, y1], [x2, y2], [x3, y3], [x4, y4] = box
+
+                if x1 != x4 or x2 != x3 or y1 != y2 or y3 != y4:
+                    raise ValueError(
+                        f"Bounding box does not seem rectangular, or does not follow the coordinate specification needed. Use the pattern {coordinate_spec}"
+                    )
+
+                if not (x2 > x1 and y3 > y1):
+                    raise ValueError(
+                        f"Minimum and maximum x and y coordinates are not set as expected. Use the pattern {coordinate_spec}"
+                    )
+
+        return value
 
     def _verify_bbox_and_pages(self) -> None:
         if self.bounding_boxes is not None and self.pages is not None:
