@@ -675,21 +675,21 @@ def test_split_text_into_sentences_merge_metadata():
         Chunk(
             text="This is the start of",
             chunk_type=BlockType.TEXT,
-            bounding_boxes=[[(0, 0), (10, 10), (20, 20), (30, 30)]],
+            bounding_boxes=[[(0, 0), (10, 0), (10, 10), (0, 10)]],
             pages=[1],
             id="1",
         ),
         Chunk(
             text="a sentence that spans chunks.",
             chunk_type=BlockType.TEXT,
-            bounding_boxes=[[(40, 40), (50, 50), (60, 60), (70, 70)]],
+            bounding_boxes=[[(40, 40), (50, 40), (50, 50), (40, 50)]],
             pages=[2],
             id="2",
         ),
         Chunk(
             text="A complete sentence.",
             chunk_type=BlockType.TEXT,
-            bounding_boxes=[[(80, 80), (90, 90), (100, 100), (110, 110)]],
+            bounding_boxes=[[(80, 80), (90, 80), (90, 90), (80, 90)]],
             pages=[3],
             id="3",
         ),
@@ -701,13 +701,13 @@ def test_split_text_into_sentences_merge_metadata():
 
     assert result[0].text == "This is the start of a sentence that spans chunks."
     assert result[0].bounding_boxes == [
-        [(0, 0), (10, 10), (20, 20), (30, 30)],
-        [(40, 40), (50, 50), (60, 60), (70, 70)],
+        [(0, 0), (10, 0), (10, 10), (0, 10)],
+        [(40, 40), (50, 40), (50, 50), (40, 50)],
     ]
     assert result[0].pages == [1, 2]
 
     assert result[1].text == "A complete sentence."
-    assert result[1].bounding_boxes == [[(80, 80), (90, 90), (100, 100), (110, 110)]]
+    assert result[1].bounding_boxes == [[(80, 80), (90, 80), (90, 90), (80, 90)]]
     assert result[1].pages == [3]
 
 
