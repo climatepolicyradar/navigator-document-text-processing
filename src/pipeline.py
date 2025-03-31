@@ -89,3 +89,11 @@ class Pipeline:
                 batch_size=encoder_batch_size,  # type: ignore
                 device=device,
             )
+
+    def get_pipeline_representations(self) -> list[str]:
+        """
+        Return string representations of all pipeline components.
+
+        Components are given a hash that can be used to track code changes.
+        """
+        return [str(component) for component in self.components]
