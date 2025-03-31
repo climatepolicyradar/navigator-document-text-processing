@@ -183,9 +183,9 @@ class PipelineComponent(ABC):
 
     def __repr__(self) -> str:
         """Return a string representation of the pipeline component."""
-        args_hash = hashlib.md5(str(self.__dict__).encode()).hexdigest()[:8]
+        args_repr = [f"{k}={v}" for k, v in self.__dict__.items()]
 
-        return f"{self.__class__.__name__}_{args_hash}_{get_class_hash(self.__class__)}"
+        return f"{self.__class__.__name__}_{args_repr}_{get_class_hash(self.__class__)}"
 
 
 class ParserOutputWithChunks(ParserOutput):
