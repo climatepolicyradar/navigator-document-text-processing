@@ -11,7 +11,7 @@ from cpr_sdk.parser_models import BlockType, ParserOutput
 logger = logging.getLogger(__name__)
 
 
-def get_class_hash(cls) -> str:
+def get_class_code_hash(cls) -> str:
     """
     Generate a hash of the source code for a class.
 
@@ -185,7 +185,7 @@ class PipelineComponent(ABC):
         """Return a string representation of the pipeline component."""
         args_repr = ";".join([f"{k}={v}" for k, v in self.__dict__.items()])
 
-        return f"{self.__class__.__name__}___{args_repr}___{get_class_hash(self.__class__)}"
+        return f"{self.__class__.__name__}___{args_repr}___{get_class_code_hash(self.__class__)}"
 
 
 class ParserOutputWithChunks(ParserOutput):
