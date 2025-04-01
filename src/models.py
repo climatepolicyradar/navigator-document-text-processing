@@ -43,15 +43,6 @@ class Chunk(BaseModel):
     def _verify_bounding_boxes(cls, value) -> None:
         """Verify bounding boxes are compatible their downstream use in the frontend.
 
-        This means they should follow the following pattern (also meaning they're
-        rectangular):
-        [
-            [xmin, ymin],
-            [xmax, ymin],
-            [xmax, ymax],
-            [xmin, ymax]
-        ]
-
         See https://github.com/climatepolicyradar/navigator-frontend/blob/b7f25a3fd2ed815fbb09416b9a046f0f1c41a0cf/src/hooks/usePDFPreview.ts#L20
         """
 
@@ -62,14 +53,18 @@ class Chunk(BaseModel):
                 if len(box) != 4:
                     raise ValueError("Bounding boxes must have exactly 4 points.")
 
-                [x1, y1], [x2, y2], [x3, y3], [x4, y4] = box
+                # These are the coordinates as defined in the frontend.
+                # Note that this ignores some of the coordinates, in the bounding box
+                # returned by the parser, so automatically guarantees that the bounding
+                # boxes are rectangular.
+                # Bounding boxes aren't actually rectangular in practice, so we don't
+                # want to validate that here.
+                xmin = box[0][0]
+                ymin = box[0][1]
+                xmax = box[1][0]
+                ymax = box[2][1]
 
-                if x1 != x4 or x2 != x3 or y1 != y2 or y3 != y4:
-                    raise ValueError(
-                        f"Bounding box does not seem rectangular, or does not follow the coordinate specification needed. Use the pattern {coordinate_spec}"
-                    )
-
-                if not (x2 > x1 and y3 > y1):
+                if not (xmin < xmax and ymin < ymax):
                     raise ValueError(
                         f"Minimum and maximum x and y coordinates are not set as expected. Use the pattern {coordinate_spec}"
                     )
