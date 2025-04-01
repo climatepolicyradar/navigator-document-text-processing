@@ -63,7 +63,7 @@ def run_on_document(document_path: Path):
     )
     parser_output_with_chunks.pipeline_metadata[
         "document_text_processor"
-    ] = pipeline.get_pipeline_representations()
+    ] = pipeline.get_component_representations()
 
     output_path = OUTPUT_DIR / f"{document_path.stem}.json"
     output_path.write_text(parser_output_with_chunks.model_dump_json(indent=4))

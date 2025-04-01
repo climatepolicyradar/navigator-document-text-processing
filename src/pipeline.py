@@ -90,7 +90,7 @@ class Pipeline:
                 device=device,
             )
 
-    def get_pipeline_representations(self) -> list[str]:
+    def get_component_representations(self) -> list[str]:
         """
         Return string representations of all pipeline components.
 
