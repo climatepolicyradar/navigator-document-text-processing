@@ -2,7 +2,8 @@ import pytest
 
 from cpr_sdk.parser_models import BlockType
 
-from src.models import Chunk
+from src.models import Chunk, PipelineComponent
+from src import chunk_processors
 from src.chunk_processors import (
     RemoveShortTableCells,
     RemoveRepeatedAdjacentChunks,
@@ -14,6 +15,36 @@ from src.chunk_processors import (
     SplitTextIntoSentences,
     RemoveMisclassifiedPageNumbers,
 )
+
+
+@pytest.mark.parametrize(
+    "chunk_processor",
+    [
+        chunk_processors.RemoveShortTableCells(),
+        chunk_processors.ChunkTypeFilter(types_to_remove=["pageNumber"]),
+        chunk_processors.RemoveFalseCheckboxes(),
+        chunk_processors.RemoveMisclassifiedPageNumbers(),
+    ],
+)
+def test_chunk_processor_repr(chunk_processor: PipelineComponent):
+    """Test that a chunk processor's repr is a hash of its source code."""
+    _repr = str(chunk_processor)
+    assert isinstance(_repr, str)
+    assert _repr.startswith(chunk_processor.__class__.__name__)
+    assert len(_repr.split("___")) == 3
+
+
+def test_chunk_processor_repr_sensitive_to_args():
+    """Test that a chunk processor's repr is sensitive to its arguments."""
+    processors = [
+        chunk_processors.RemoveShortTableCells(),
+        chunk_processors.RemoveShortTableCells(min_chars=1),
+        chunk_processors.RemoveShortTableCells(min_chars=1, remove_all_numeric=False),
+    ]
+
+    processor_strings = [str(processor) for processor in processors]
+
+    assert len(set(processor_strings)) == len(processors)
 
 
 def test_remove_short_table_cells_drop_numeric():

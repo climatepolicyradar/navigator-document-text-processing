@@ -1,12 +1,29 @@
 from typing import Optional
 from abc import ABC, abstractmethod
 import logging
+import inspect
+import hashlib
 
 from pydantic import BaseModel, field_validator
 
 from cpr_sdk.parser_models import BlockType, ParserOutput
 
 logger = logging.getLogger(__name__)
+
+
+def get_class_code_hash(cls) -> str:
+    """
+    Generate a hash of the source code for a class.
+
+    NOTE: this is also sensitive to changes in docstrings.
+    """
+    try:
+        source_code = inspect.getsource(cls)
+        md5sum = hashlib.md5(source_code.encode()).hexdigest()
+        return md5sum[:8]
+    except (TypeError, OSError):
+        logger.warning(f"Could not generate hash for component {cls.__name__}")
+        return "unknown"
 
 
 class Chunk(BaseModel):
@@ -158,6 +175,12 @@ class PipelineComponent(ABC):
     def __call__(self, chunks: list[Chunk]) -> list[Chunk]:
         """Base class for any pipeline component."""
         raise NotImplementedError
+
+    def __repr__(self) -> str:
+        """Return a string representation of the pipeline component."""
+        args_repr = ";".join([f"{k}={v}" for k, v in self.__dict__.items()])
+
+        return f"{self.__class__.__name__}___{args_repr}___{get_class_code_hash(self.__class__)}"
 
 
 class ParserOutputWithChunks(ParserOutput):
