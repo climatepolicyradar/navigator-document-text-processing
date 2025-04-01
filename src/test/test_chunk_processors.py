@@ -31,7 +31,7 @@ def test_chunk_processor_repr(chunk_processor: PipelineComponent):
     _repr = str(chunk_processor)
     assert isinstance(_repr, str)
     assert _repr.startswith(chunk_processor.__class__.__name__)
-    assert len(_repr.split("_")) == 3
+    assert len(_repr.split("___")) == 3
 
 
 def test_chunk_processor_repr_sensitive_to_args():
