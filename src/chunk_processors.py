@@ -699,6 +699,9 @@ class SplitTextIntoSentencesPysbd(SplitTextIntoSentencesBasic):
         for segment in segments:
             segment_str = str(segment).strip()
 
+            # Although we're using a powerful sentence splitter here, we still need to
+            # check for common abbreviations at the end of sentences, as Pysbd has
+            # no context of what happens in the next chunk(s) here.
             if re.search(r"[.!?…]$", segment_str) and not any(
                 segment_str.endswith(abbr.replace("\\", ""))
                 for abbr in self.common_abbreviations
