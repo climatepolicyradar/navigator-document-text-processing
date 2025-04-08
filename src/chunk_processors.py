@@ -8,6 +8,7 @@ from typing import Sequence, Optional
 from logging import getLogger
 import re
 
+import pysbd
 from cpr_sdk.parser_models import BlockType
 
 from src.models import Chunk, PipelineComponent
@@ -604,3 +605,48 @@ class SplitTextIntoSentences(PipelineComponent):
             final_sentences.append(sentence)
 
         return final_sentences
+
+
+class SplitTextIntoSentencesPysbd(SplitTextIntoSentences):
+    """
+    Version of SplitTextIntoSentences that uses Pysbd to split text into sentences.
+
+    This is the recommended method for splitting text into sentences, as it's performant
+    plus being relatively fast. See https://github.com/wikimedia/sentencex?tab=readme-ov-file#performance
+    """
+
+    def __init__(
+        self,
+        chunk_types_to_ignore: list[BlockType] = [
+            BlockType.PAGE_HEADER,
+            BlockType.PAGE_FOOTER,
+            BlockType.FOOT_NOTE,
+        ],
+    ) -> None:
+        super().__init__(chunk_types_to_ignore=chunk_types_to_ignore)
+        self.segmenter = pysbd.Segmenter(language="en")
+
+    def _extract_complete_sentences(self, text: str) -> list[str]:
+        """
+        Extract complete sentences from text using pysbd segmenter.
+
+        For sentence merging to work correctly, this method needs to identify only
+        sentences that are complete (ending with proper punctuation) and leave
+        incomplete sentences to be merged with subsequent chunks.
+        """
+        if not text.strip():
+            return []
+
+        processed_text = text.replace("\n", " ")
+
+        segments = self.segmenter.segment(processed_text)
+        complete_sentences = []
+
+        for segment in segments:
+            segment_str = str(segment).strip()
+
+            if re.search(r"[.!?…]$", segment_str):
+                if segment_str in processed_text:
+                    complete_sentences.append(segment_str)
+
+        return complete_sentences

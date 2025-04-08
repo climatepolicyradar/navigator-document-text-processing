@@ -14,6 +14,7 @@ from src.chunk_processors import (
     CombineTextChunksIntoList,
     SplitTextIntoSentences,
     RemoveMisclassifiedPageNumbers,
+    SplitTextIntoSentencesPysbd,
 )
 
 
@@ -606,12 +607,19 @@ def test_combine_text_chunks_into_list_across_chunks():
     assert result[2].text == "Additional items to consider:\n1. First numbered item"
 
 
-def test_split_text_into_sentences_basic():
+@pytest.mark.parametrize(
+    "splitter_class,expected_passes",
+    [
+        (SplitTextIntoSentencesPysbd, True),
+        (SplitTextIntoSentences, False),
+    ],
+)
+def test_split_text_into_sentences_basic(splitter_class, expected_passes):
     """Test splitting text chunks into sentences."""
-    processor = SplitTextIntoSentences()
+    processor = splitter_class()
     chunks = [
         Chunk(
-            text="This is sentence one... This is sentence two.",
+            text="This is sentence one... This is sentence No. 2.",
             chunk_type=BlockType.TEXT,
             bounding_boxes=None,
             pages=None,
@@ -649,14 +657,26 @@ def test_split_text_into_sentences_basic():
 
     result = processor(chunks)
 
-    assert len(result) == 6
-    assert result[0].text == "This is sentence one..."
-    assert result[1].text == "This is sentence two."
-    assert result[2].text == "This is an incomplete sentence that spans chunks."
-    assert result[3].text == "A title chunk"
-    assert result[3].chunk_type == BlockType.TITLE
-    assert result[4].text == "Back to sentences!"
-    assert result[5].text == "With multiple parts."
+    expected_result_text = [
+        "This is sentence one...",
+        "This is sentence No. 2.",
+        "This is an incomplete sentence that spans chunks.",
+        "A title chunk",
+        "Back to sentences!",
+        "With multiple parts.",
+    ]
+
+    if expected_passes:
+        assert len(result) == 6
+        assert result[3].chunk_type == BlockType.TITLE
+        assert all(
+            result[i].text == expected_result_text[i] for i in range(len(result))
+        )
+    else:
+        result_text = [result[i].text for i in range(len(result))]
+        assert not all(
+            result_text[i] == expected_result_text[i] for i in range(len(result))
+        )
 
     assert all(
         chunks[i].chunk_type == BlockType.TEXT for i in range(len(chunks)) if i != 3
