@@ -4,7 +4,7 @@ Components which processes sequences of chunks in the pipeline.
 These could filter, clean or modify the chunks in some way.
 """
 
-from typing import Sequence, Optional
+from typing import Sequence, Optional, Literal
 from logging import getLogger
 import re
 
@@ -195,11 +195,13 @@ class RemoveRegexPattern(PipelineComponent):
         replace_with: str = " ",
         skip_partial_replacements: bool = False,
         chunk_types: list[BlockType] = [],
+        ignore_case: bool = False,
     ) -> None:
         self.pattern = pattern
         self.replace_with = replace_with
         self.skip_partial_replacements = skip_partial_replacements
         self.chunk_types = chunk_types or None
+        self.ignore_case = ignore_case
 
     def __call__(self, chunks: list[Chunk]) -> list[Chunk]:
         """Run regex pattern removal."""
@@ -212,14 +214,23 @@ class RemoveRegexPattern(PipelineComponent):
                 continue
 
             # If the entire text matches the pattern, skip this chunk
-            if re.match(f"^{self.pattern}$", chunk.text):
+            if re.match(
+                f"^{self.pattern}$",
+                chunk.text,
+                re.IGNORECASE if self.ignore_case else 0,
+            ):
                 continue
 
             if self.skip_partial_replacements:
                 # No text replacement – add the chunk unchanged
                 new_chunks.append(chunk)
             else:
-                new_text = re.sub(self.pattern, self.replace_with, chunk.text)
+                new_text = re.sub(
+                    self.pattern,
+                    self.replace_with,
+                    chunk.text,
+                    re.IGNORECASE if self.ignore_case else 0,
+                )
 
                 new_chunk = chunk.model_copy()
                 new_chunk.text = new_text.strip()
@@ -250,9 +261,10 @@ class RemoveMisclassifiedPageNumbers(RemoveRegexPattern):
 
     def __init__(self) -> None:
         super().__init__(
-            pattern=r"(?i)^(?:page\s*)?\s*\d+",
+            pattern=r"^(?:page\s*)?\s*\d+$",
             skip_partial_replacements=True,
             chunk_types=[BlockType.PAGE_HEADER, BlockType.PAGE_FOOTER],
+            ignore_case=True,
         )
 
 
@@ -426,6 +438,48 @@ class CombineTextChunksIntoList(PipelineComponent):
 
 
 class SplitTextIntoSentences(PipelineComponent):
+    """
+    Route text chunks to the appropriate sentence splitter.
+
+    This router selects which sentence splitter implementation to use based on
+    the splitter_type parameter.
+    """
+
+    def __init__(
+        self,
+        splitter_type: Literal["pysbd", "basic"] = "pysbd",
+        chunk_types_to_ignore: list[BlockType] = [
+            BlockType.PAGE_HEADER,
+            BlockType.PAGE_FOOTER,
+            BlockType.FOOT_NOTE,
+        ],
+        splitter_kwargs: dict = {},
+    ) -> None:
+        """Initialize the router with the selected splitter type."""
+        self.splitter_type = splitter_type.lower()
+
+        if self.splitter_type == "pysbd":
+            self.splitter = SplitTextIntoSentencesPysbd(
+                chunk_types_to_ignore=chunk_types_to_ignore,
+                **splitter_kwargs,
+            )
+        elif self.splitter_type == "basic":
+            self.splitter = SplitTextIntoSentencesBasic(
+                chunk_types_to_ignore=chunk_types_to_ignore,
+                **splitter_kwargs,
+            )
+        else:
+            raise ValueError(
+                f"Unknown splitter type: {splitter_type}. "
+                "Supported types are 'pysbd' and 'basic'."
+            )
+
+    def __call__(self, chunks: Sequence[Chunk]) -> list[Chunk]:
+        """Chunk text into sentences."""
+        return self.splitter(chunks)
+
+
+class SplitTextIntoSentencesBasic(PipelineComponent):
     """
     Split chunks of type TEXT in to sentences. Handles sentences which go across chunks.
 
@@ -607,7 +661,7 @@ class SplitTextIntoSentences(PipelineComponent):
         return final_sentences
 
 
-class SplitTextIntoSentencesPysbd(SplitTextIntoSentences):
+class SplitTextIntoSentencesPysbd(SplitTextIntoSentencesBasic):
     """
     Version of SplitTextIntoSentences that uses Pysbd to split text into sentences.
 
@@ -645,7 +699,10 @@ class SplitTextIntoSentencesPysbd(SplitTextIntoSentences):
         for segment in segments:
             segment_str = str(segment).strip()
 
-            if re.search(r"[.!?…]$", segment_str):
+            if re.search(r"[.!?…]$", segment_str) and not any(
+                segment_str.endswith(abbr.replace("\\", ""))
+                for abbr in self.common_abbreviations
+            ):
                 if segment_str in processed_text:
                     complete_sentences.append(segment_str)
 

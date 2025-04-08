@@ -12,9 +12,10 @@ from src.chunk_processors import (
     RemoveFalseCheckboxes,
     CombineSuccessiveSameTypeChunks,
     CombineTextChunksIntoList,
-    SplitTextIntoSentences,
     RemoveMisclassifiedPageNumbers,
+    SplitTextIntoSentencesBasic,
     SplitTextIntoSentencesPysbd,
+    SplitTextIntoSentences,
 )
 
 
@@ -611,7 +612,7 @@ def test_combine_text_chunks_into_list_across_chunks():
     "splitter_class,expected_passes",
     [
         (SplitTextIntoSentencesPysbd, True),
-        (SplitTextIntoSentences, False),
+        (SplitTextIntoSentencesBasic, False),
     ],
 )
 def test_split_text_into_sentences_basic(splitter_class, expected_passes):
