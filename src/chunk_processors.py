@@ -255,6 +255,17 @@ class RemoveMisclassifiedPageNumbers(RemoveRegexPattern):
         )
 
 
+class RemoveChunksUnderLength(PipelineComponent):
+    """Remove chunks that are under a certain length."""
+
+    def __init__(self, min_num_characters: int) -> None:
+        self.min_num_characters = min_num_characters
+
+    def __call__(self, chunks: list[Chunk]) -> list[Chunk]:
+        """Run chunk length filtering."""
+        return [chunk for chunk in chunks if len(chunk.text) >= self.min_num_characters]
+
+
 class CombineSuccessiveSameTypeChunks(PipelineComponent):
     """
     Combines successive chunks of the same type in a sequence of chunks.

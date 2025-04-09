@@ -47,6 +47,7 @@ def run_on_document(document_path: Path):
                 ]
             ),
             chunk_processors.SplitTextIntoSentences(),
+            chunk_processors.RemoveChunksUnderLength(min_num_characters=1),
             chunkers.FixedLengthChunker(max_chunk_words=150),
             tokenizers.NLTKWordTokenizer(),
             chunk_processors.AddHeadings(),
