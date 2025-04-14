@@ -268,6 +268,17 @@ class RemoveMisclassifiedPageNumbers(RemoveRegexPattern):
         )
 
 
+class RemoveChunksUnderLength(PipelineComponent):
+    """Remove chunks that are under a certain length."""
+
+    def __init__(self, min_num_characters: int) -> None:
+        self.min_num_characters = min_num_characters
+
+    def __call__(self, chunks: list[Chunk]) -> list[Chunk]:
+        """Run chunk length filtering."""
+        return [chunk for chunk in chunks if len(chunk.text) >= self.min_num_characters]
+
+
 class CombineSuccessiveSameTypeChunks(PipelineComponent):
     """
     Combines successive chunks of the same type in a sequence of chunks.
@@ -346,7 +357,7 @@ class CombineTextChunksIntoList(PipelineComponent):
 
     def __init__(self, text_separator: str = "\n") -> None:
         self.text_separator = text_separator
-        self.list_item_pattern = r"(^|\n)(?:•|-|·|(?:[\(|\[]?[0-9a-zA-Z]{0,3}[\.|\)|\]])|(?:[A-Za-z][-–])).*?"
+        self.list_item_pattern = r"(^|\n)(?:•|-|·|(?:[\(|\[]?[0-9a-zA-Z]{0,3}[\.|\)|\]|\-|\–])|(?:[A-Za-z][-–])).*?"
 
     def __call__(self, chunks: list[Chunk]) -> list[Chunk]:
         """Run list item combining."""
@@ -487,7 +498,7 @@ class SplitTextIntoSentencesBasic(PipelineComponent):
     These chunks are passed through unchanged and are treated as "invisible" to the sentence
     splitter. This means a sentence can span across multiple chunks if they are separated
     by chunks of these ignored types (like headers or footers). Defaults to PAGE_HEADER,
-    PAGE_FOOTER and FOOT_NOTE.
+    PAGE_FOOTER, FOOT_NOTE and PAGE_NUMBER.
     """
 
     def __init__(
@@ -496,6 +507,7 @@ class SplitTextIntoSentencesBasic(PipelineComponent):
             BlockType.PAGE_HEADER,
             BlockType.PAGE_FOOTER,
             BlockType.FOOT_NOTE,
+            BlockType.PAGE_NUMBER,
         ],
     ) -> None:
         # Common abbreviations that shouldn't cause sentence splits
