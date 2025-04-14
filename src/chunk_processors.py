@@ -443,7 +443,7 @@ class SplitTextIntoSentences(PipelineComponent):
     These chunks are passed through unchanged and are treated as "invisible" to the sentence
     splitter. This means a sentence can span across multiple chunks if they are separated
     by chunks of these ignored types (like headers or footers). Defaults to PAGE_HEADER,
-    PAGE_FOOTER and FOOT_NOTE.
+    PAGE_FOOTER, FOOT_NOTE and PAGE_NUMBER.
     """
 
     def __init__(
@@ -452,6 +452,7 @@ class SplitTextIntoSentences(PipelineComponent):
             BlockType.PAGE_HEADER,
             BlockType.PAGE_FOOTER,
             BlockType.FOOT_NOTE,
+            BlockType.PAGE_NUMBER,
         ],
     ) -> None:
         # Common abbreviations that shouldn't cause sentence splits
