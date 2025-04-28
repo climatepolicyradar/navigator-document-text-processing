@@ -143,4 +143,11 @@ class SBERTEncoder(BaseEncoder):
     @property
     def dimension(self) -> int:
         """Return the dimension of the embedding."""
-        return self.encoder.get_sentence_embedding_dimension()
+        dimension = self.encoder.get_sentence_embedding_dimension()
+
+        if dimension is None:
+            raise ValueError(
+                "Dimension is not known for the encoder. This is an issue with the sentence-transformers library."
+            )
+
+        return dimension
