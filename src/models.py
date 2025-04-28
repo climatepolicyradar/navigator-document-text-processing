@@ -29,7 +29,7 @@ def get_class_code_hash(cls) -> str:
 class Chunk(BaseModel):
     """A unit part of a document."""
 
-    id: Annotated[int, Field(strict=True, ge=0)]
+    idx: Annotated[int, Field(strict=True, ge=0)]
     text: str
     chunk_type: BlockType
     heading: Optional["Chunk"] = None
@@ -151,7 +151,7 @@ class Chunk(BaseModel):
             ]
 
         return Chunk(
-            id=min(chunk.id for chunk in all_chunks),
+            idx=min(chunk.idx for chunk in all_chunks),
             text=text_separator.join(all_texts),
             chunk_type=self.chunk_type,
             bounding_boxes=combined_bounding_boxes,

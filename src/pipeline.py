@@ -17,7 +17,7 @@ def parser_output_to_chunks(parser_output: ParserOutput) -> list[Chunk]:
 
     chunks = [
         Chunk(
-            id=idx,
+            idx=idx,
             text=text_block.to_string(),
             chunk_type=text_block.type,
             bounding_boxes=[text_block.coords]
