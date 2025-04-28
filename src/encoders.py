@@ -2,11 +2,14 @@
 
 from abc import ABC, abstractmethod
 from typing import List, Optional
+from logging import getLogger
 
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
 from src import config
+
+logger = getLogger(__name__)
 
 
 def sliding_window(text: str, window_size: int, stride: int) -> list[str]:
@@ -105,8 +108,7 @@ class SBERTEncoder(BaseEncoder):
         For args, see encode_batch.
         """
 
-        max_seq_length = self.encoder.max_seq_length
-        assert isinstance(max_seq_length, int)
+        max_seq_length = self.context_window_length
 
         # Split the texts based on length and apply sliding window only to longer texts
         processed_texts = []
@@ -114,6 +116,12 @@ class SBERTEncoder(BaseEncoder):
 
         for text in text_batch:
             if self.get_n_tokens(text) > max_seq_length:
+                # TODO: add this to observability along with the text length, the model name and the model context window length
+                logger.warning(
+                    f"Text is longer than the context window length of the encoder."
+                    f"Splitting the text into {len(sliding_window(text, window_size=max_seq_length, stride=max_seq_length // 2))} chunks."
+                )
+
                 windows = sliding_window(
                     text, window_size=max_seq_length, stride=max_seq_length // 2
                 )  # Use reasonable, safe, calculated values for the sliding window
@@ -143,4 +151,22 @@ class SBERTEncoder(BaseEncoder):
     @property
     def dimension(self) -> int:
         """Return the dimension of the embedding."""
-        return self.encoder.get_sentence_embedding_dimension()
+        dimension = self.encoder.get_sentence_embedding_dimension()
+
+        if dimension is None:
+            raise ValueError(
+                "Dimension is not known for the encoder. This is an issue with the sentence-transformers library."
+            )
+
+        return dimension
+
+    @property
+    def context_window_length(self) -> int:
+        """Return the context window length of the encoder."""
+
+        if not isinstance(self.encoder.max_seq_length, int):
+            raise ValueError(
+                "An integer context window length is expected, but has not been returned by the encoder."
+            )
+
+        return self.encoder.max_seq_length
