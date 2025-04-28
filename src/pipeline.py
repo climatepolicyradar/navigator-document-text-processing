@@ -17,7 +17,7 @@ def parser_output_to_chunks(parser_output: ParserOutput) -> list[Chunk]:
 
     chunks = [
         Chunk(
-            id=text_block.text_block_id,
+            id=idx,
             text=text_block.to_string(),
             chunk_type=text_block.type,
             bounding_boxes=[text_block.coords]
@@ -27,7 +27,7 @@ def parser_output_to_chunks(parser_output: ParserOutput) -> list[Chunk]:
             if isinstance(text_block, PDFTextBlock)
             else None,
         )
-        for text_block in parser_output.text_blocks
+        for idx, text_block in enumerate(parser_output.text_blocks)
     ]
 
     return chunks

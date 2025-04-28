@@ -9,7 +9,7 @@ def test_nltk_word_tokenizer():
     # Create test chunks
     chunks = [
         Chunk(
-            id="1",
+            id=0,
             text="This is a simple test.",
             chunk_type=BlockType.TEXT,
             bounding_boxes=None,
@@ -19,7 +19,7 @@ def test_nltk_word_tokenizer():
             serialized_text=None,
         ),
         Chunk(
-            id="2",
+            id=1,
             text="Multiple sentences. With punctuation!",
             chunk_type=BlockType.TEXT,
             bounding_boxes=None,
