@@ -1,10 +1,10 @@
-from typing import Optional
+from typing import Annotated, Optional
 from abc import ABC, abstractmethod
 import logging
 import inspect
 import hashlib
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, Field
 
 from cpr_sdk.parser_models import BlockType, ParserOutput
 
@@ -29,7 +29,7 @@ def get_class_code_hash(cls) -> str:
 class Chunk(BaseModel):
     """A unit part of a document."""
 
-    id: str
+    idx: Annotated[int, Field(strict=True, ge=0)]
     text: str
     chunk_type: BlockType
     heading: Optional["Chunk"] = None
@@ -104,7 +104,8 @@ class Chunk(BaseModel):
         """
         Merge multiple chunks into a single chunk.
 
-        The ID and chunk type are taken from the first chunk.
+        The chunk type is taken from the first chunk.
+        The ID is the minimum ID of the chunks being merged.
         """
 
         if not others:
@@ -150,8 +151,7 @@ class Chunk(BaseModel):
             ]
 
         return Chunk(
-            # TODO: can we better handle IDs when merging chunks?
-            id=self.id,
+            idx=min(chunk.idx for chunk in all_chunks),
             text=text_separator.join(all_texts),
             chunk_type=self.chunk_type,
             bounding_boxes=combined_bounding_boxes,
