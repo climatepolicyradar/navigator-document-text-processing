@@ -43,12 +43,6 @@ class BaseEncoder(ABC):
         """Return the dimension of the embeddings produced by the encoder."""
         raise NotImplementedError
 
-    @property
-    @abstractmethod
-    def context_window_length(self) -> int:
-        """Return the context window length of the encoder."""
-        raise NotImplementedError
-
 
 class SBERTEncoder(BaseEncoder):
     """Encoder which uses the sentence-transformers library.
