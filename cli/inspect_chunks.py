@@ -76,8 +76,8 @@ def display_chunk(
     metadata = Text()
     if index is not None:
         metadata.append(f"#{index} ", style="green bold dim")
-    metadata.append("ID: ", style="dim")
-    metadata.append(chunk.id, style="cyan dim")
+    metadata.append("Index: ", style="dim")
+    metadata.append(str(chunk.idx), style="cyan dim")
     metadata.append(" | Type: ", style="dim")
     metadata.append(chunk.chunk_type.value, style="magenta dim")
     if chunk.pages:
